@@ -1,0 +1,5 @@
+.*.swp
+.vscode
+/design.pdf
+/client/jsondiffpatch.min.js
+/client/jsondiffpatch-formatters.min.js

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>abrechnung-ng</title>
+		<link rel="stylesheet" href="style.css">
+		<link rel="shortcut icon" href="favicon.png">
+	</head>
+	<body>
+		<!-- global variables -->
+		<script type="text/javascript">'use strict'; var page = {}; var query = {};</script>
+		<!-- various utilities -->
+		<script src="util.js"></script>
+		<!-- various DOM utilities -->
+		<script src="domutil.js"></script>
+		<!-- websocket connection to server -->
+		<script src="wsclient.js"></script>
+		<!-- main logic for set_password.html -->
+		<script src="update_email.js"></script>
+		<!-- DOM manipulation and script initialization -->
+		<script type="text/javascript">
+		'use strict';
+
+		/** sets the page status display */
+		page.status = (message, type) => {
+			var status = document.getElementById("status_info");
+			status.textContent = message;
+			status.className = type || "";
+		};
+
+		page.set_confirm_button_text = (text) => {
+			document.getElementById("confirm_button").textContent = text;
+		};
+
+		page.show_confirm_prompt = () => {
+			document.getElementById("confirm_prompt").classList.remove("hidden");
+		};
+
+        page.hide_confirm_prompt = () => {
+			document.getElementById("confirm_prompt").classList.add("hidden");
+		};
+
+        page.show_success_message = () => {
+			document.getElementById("success_message").classList.remove("hidden");
+		};
+
+		window.addEventListener("load", () => {
+			query = parse_query_string();
+
+			document.getElementById("confirm_prompt").addEventListener("click", () => {
+				confirm_update_email();
+			});
+
+			connect();
+		});
+		</script>
+		<div id="status">
+			<span id="status_info" class="error">Javascript failure</span>
+		</div>
+		<div id="confirm_prompt" class="hidden" class="mainElement">
+			<button id="confirm_button">Confirm</button>
+		</div>
+		<div id="success_message" class="hidden" class="mainElement">
+			Yay! <a href="index.html">Return</a>!
+		</div>
+	</body>
+</html>

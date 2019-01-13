@@ -1,0 +1,83 @@
+{
+	"dialect": "sft-kybernetik-0",
+	"description": "random test group",
+	"pseudousers": {
+		":42-gänge-menü": {
+			"description": "war eigentlich scheisse",
+			"shares": {
+				"jj" : 1,
+				"mic_e": 1
+			}
+		},
+		":a0": { "description": "lol", "shares": {":e0": 1, ":e1": 1}},
+		":a1": { "description": "lol", "shares": {":e0": 1, ":e1": 1}},
+		":a2": { "description": "lol", "shares": {":e0": 1, ":e1": 1}},
+		":a3": { "description": "lol", "shares": {":e0": 1, ":e1": 1}},
+		":a4": { "description": "lol", "shares": {":e0": 1, ":e1": 1}},
+		":e0": { "description": "lol", "shares": {":e1": 1}},
+		":e1": { "description": "lol", "shares": {":e2": 1}},
+		":e2": { "description": "lol", "shares": {":e3": 1}},
+		":e3": { "description": "lol", "shares": {":e4": 1}},
+		":e4": { "description": "lol", "shares": {"mic_e": 1}}
+	},
+	"currencies": {
+		"VND": 3.70e-5,
+		"Payback-Punkte": 0.001
+	},
+	"events": {
+		"penny-einkauf": {
+			"type": "purchase",
+			"description": "erstmal zu rewe",
+			"currency": "Payback-Punkte",
+			"paid_by": "jj",
+			"assists": { "mic_e": 50 },
+			"shares": {
+				"jj": 1,
+				"mic_e": 1
+			},
+			"items": [
+				{
+					"name": "booster energy 1.5l",
+					"count": 90,
+					"cost": 0.99,
+					"usages": {
+						":42-gänge-menü": 84
+					},
+					"shares": {
+						"mic_e": 1
+					}
+				},
+				{
+					"name": "pfand",
+					"count": 84,
+					"cost": 0.25,
+					"shares": {
+						"mic_e": 1
+					}
+				},
+				{
+					"name": "möhrchen",
+					"count": 10,
+					"unit": "kg",
+					"cost": 0.99
+				},
+				{
+					"name": "fleisch",
+					"count": 1.23,
+					"unit": "kg",
+					"total_cost": 2.35,
+					"usages": {
+						"mic_e": 1.5
+					}
+				}
+			]
+		},
+		"zahlung": {
+			"type": "payment",
+			"description": "",
+			"paid_by": "mic_e",
+			"paid_to": "jj",
+			"amount": 100
+		}
+	}
+}

@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+	 <head>
+		<meta charset="utf-8">
+		<title>abrechnung-ng</title>
+		<link rel="stylesheet" href="style.css">
+		<link rel="shortcut icon" href="favicon.png">
+	</head>
+	<body>
+		<!-- global variables -->
+		<script type="text/javascript">'use strict'; var page = {}; var query = {};</script>
+		<!-- various utilities -->
+		<script src="util.js"></script>
+		<!-- various DOM utilities -->
+		<script src="domutil.js"></script>
+		<!-- websocket connection to server -->
+		<script src="wsclient.js"></script>
+		<!-- main logic for set_password.html -->
+		<script src="index.js"></script>
+		<!-- DOM manipulation and script initialization -->
+		<script type="text/javascript">
+		'use strict';
+
+		/** sets the page status display */
+		page.status = (message, type) => {
+			var status = document.getElementById("status_info");
+			status.textContent = message;
+			status.className = type || "";
+		};
+		page.show_login_prompt = () => {
+			document.getElementById("login_prompt").classList.remove("hidden");
+		};
+		page.enter_main = (uid) => {
+			document.getElementById("login_prompt").classList.add("hidden");
+			document.getElementById("uid_display").textContent = uid;
+			document.getElementById("login_info").classList.remove("hidden");
+			document.getElementById("main").classList.remove("hidden");
+			page.navigate_to(window.location.hash);
+		};
+		page.navigate_to = (nav_location) => {
+			// TODO: the navigation stuff... choose the tab depending on nav_location
+			if (nav_location === "updates") {
+			}
+			page.set_nav_location(nav_location);
+		};
+		page.set_nav_location = (nav_location) => {
+			if (window.location.hash === "#" + nav_location) { return; }
+			history.pushState(null, null, "#" + nav_location)
+		};
+		page.table_update_added_user = (uid, name, email, added, activated) => {
+			const table_row_id = "pending_user_table_row_" + uid;
+			let row = document.getElementById(table_row_id);
+			if (row === null) {
+				// table row does not yet exist
+				row = document.createElement("tr");
+				row.id = table_row_id;
+
+				var td;
+				var button;
+				var input;
+				
+				for (let i = 0; i < 6; i++) {
+					row.appendChild(document.createElement("td"));
+				}
+
+				row.children[2].appendChild(document.createElement("input"));
+				row.children[2].lastChild.autocomplete = "off";
+				row.children[2].appendChild(document.createElement("button"));
+				row.children[2].lastChild.textContent = "Update";
+				link_text_input_to_update_button(
+					row.children[2].firstChild,
+					row.children[2].lastChild,
+					(value) => {
+						console.log("update email for", uid, "to", value)
+					}
+				);
+
+				row.children[5].appendChild(document.createElement("button"));
+				row.children[5].lastChild.textContent = "Delete";
+				row.children[5].lastChild.classList.add("pending_user_delete_button");
+				row.children[5].lastChild.addEventListener("click", () => {
+					console.log("delete user", uid);
+				});
+
+				row.children[5].appendChild(document.createElement("button"));
+				row.children[5].lastChild.textContent = "Resend password email";
+				row.children[5].lastChild.classList.add("pending_user_resend_email_button");
+				row.children[5].lastChild.addEventListener("click", () => {
+					console.log("resend email", uid);
+				});
+
+				document.getElementById("pending_user_table").prepend(row);
+			}
+
+			row.children[0].textContent = uid;
+			row.children[1].textContent = name;
+			assign_value_to_text_input_with_update_button(row.children[2].children[0], email);
+			row.children[3].textContent = added;
+			row.children[4].textContent = activated;
+			
+			row.children[2].children[0].readOnly = activated;
+			row.children[2].children[1].disabled = true;
+			row.children[5].children[0].disabled = activated;
+			row.children[5].children[1].disabled = activated;
+		};
+		page.update_my_account = (uid, name, email, added, added_by, last_password_change, email_update_request, email_update_request_timestamp) => {
+			document.getElementById("my_account_uid").textContent = uid;
+			assign_value_to_text_input_with_update_button(document.getElementById("my_account_name"), name);
+			assign_value_to_text_input_with_update_button(document.getElementById("my_account_email"), email);
+			document.getElementById("my_account_added").textContent = added;
+			document.getElementById("my_account_added_by").textContent = added_by;
+			document.getElementById("my_account_last_password_change").textContent = last_password_change;
+			const request_span = document.getElementById("my_account_email_update_request")
+			if (email_update_request !== null) {
+				request_span.classList.remove("hidden");
+				request_span.lastChild.textContent = "Change to " + email_update_request + " was requested at " + email_update_request_timestamp;
+			} else {
+				request_span.classList.add("hidden");
+			}
+		};
+
+		/*
+		page.open_group_editor = () => {
+			if (idx !== null) {
+				event = cache.events[idx];
+				document.getElementById("group_editor_heading").textContent = "editing event #" + idx;
+				document.getElementById("group_editorRemoveButton").classList.remove("hidden");
+			} else {
+				document.getElementById("group_editor_heading").textContent = "new event";
+				document.getElementById("group_editorRemoveButton").classList.add("hidden");
+			}
+			pageState.group_editorStartingEffects = event.effects;
+			pageState.group_editor_code_editor.update(JSON.stringify(event.value, null, 2));
+			document.getElementById("main").classList.add("hidden");
+			document.getElementById("group_editor").classList.remove("hidden");
+		}
+		*/
+
+		window.addEventListener("load", () => {
+			document.getElementById("login_form").addEventListener("submit", (e) => {
+				e.preventDefault();
+				login_password(e.target.elements.user.value, e.target.elements.password.value, e.target.elements.remember.checked);
+			});
+			document.getElementById("logout_button").addEventListener("click", () => { logout(); });
+			document.getElementById("my_account_email_update_abort").addEventListener("click", () => { abort_update_email(); });
+			document.getElementById("add_new_user_button").addEventListener("click", (e) => {
+				e.target.classList.add("hidden");
+				document.getElementById("add_new_user_form").classList.remove("hidden");
+			});
+			const add_new_user_form = document.getElementById("add_new_user_form");
+			const add_new_user_form_on_input = () => {
+				let disable_submit = false;
+				if (add_new_user_form.elements.uid.value === "") { disable_submit = true; }
+				if (add_new_user_form.elements.name.value === "") { disable_submit = true; }
+				if (add_new_user_form.elements.email.value !== add_new_user_form.elements.email_confirm.value) {
+					disable_submit = true;
+				};
+				add_new_user_form.elements.submit.disabled = disable_submit;
+			};
+			const add_new_user_form_hide = () => {
+				const add_new_user_form = document.getElementById("add_new_user_form");
+				add_new_user_form.elements.uid.value = "";
+				add_new_user_form.elements.name.value = "";
+				add_new_user_form.elements.email.value = "";
+				add_new_user_form.elements.email_confirm.value = "";
+				add_new_user_form.elements.submit.disabled = true;
+				document.getElementById("add_new_user_form").classList.add("hidden");
+				document.getElementById("add_new_user_button").classList.remove("hidden");
+			};
+			document.getElementById("add_new_user_form_abort_button").addEventListener("click", add_new_user_form_hide);
+			add_new_user_form.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				try {
+					await add_new_user(
+						add_new_user_form.elements.uid.value,
+						add_new_user_form.elements.name.value,
+						add_new_user_form.elements.email.value,
+						add_new_user_form.elements.email_confirm.value
+					);
+				} catch (error) {
+					// TODO: if the error can be analyzed more directly, display it in the form
+					page.status("could not add new user: " + error, "error");
+					return;
+				}
+				add_new_user_form_hide();
+			});
+
+			add_new_user_form.elements.uid.addEventListener("input", add_new_user_form_on_input);
+			add_new_user_form.elements.name.addEventListener("input", add_new_user_form_on_input);
+			add_new_user_form.elements.email.addEventListener("input", add_new_user_form_on_input);
+			add_new_user_form.elements.email_confirm.addEventListener("input", add_new_user_form_on_input);
+
+			link_text_input_to_update_button(document.getElementById("my_account_name"), document.getElementById("my_account_name_update"), async (value) => {
+				try {
+					await update_my_account_name(value);
+				} catch (error) {
+					page.status("could not update account name: " + error, "error");
+				}
+			});
+			link_text_input_to_update_button(document.getElementById("my_account_email"), document.getElementById("my_account_email_update"), async (value) => {
+				try {
+					await update_my_account_email(value);
+				} catch (error) {
+					page.status("could not update account email: " + error, "error");
+				}
+			});
+
+			query = parse_query_string();
+
+			page.status("Initializing...")
+			store = JSON.parse(localStorage.getItem("abrechnung-ng") || "{}");
+
+			// default values for store
+			if (store.device_id === undefined) {
+				store.device_id = get_random_string(8);
+			}
+
+			window.addEventListener("beforeunload", (e) => {
+				localStorage.setItem("abrechnung-ng", JSON.stringify(store));
+			});
+			window.addEventListener("hashchange", () => page.navigateTo(window.location.hash.substring(1)));
+
+			/*
+			pageState.group_editor_code_editor = new CodeFlask;
+			pageState.group_editor_code_editor.run('#group_editor_code_editor', {language: 'json'});
+			pageState.group_editor_code_editor.onUpdate((text) => {
+				const event = cache.events[pageState.group_editorCurrent];
+				let diff = document.getElementById("group_editor_diff");
+				let effects = document.getElementById("group_editor_effects");
+				let submit = document.getElementById("group_editor_submit_button");
+				let leave = document.getElementById("group_editor_leave_button");
+				try {
+					let newValue = JSON.parse(text);
+					if (event === undefined) {
+						if (Object.keys(newValue).length === 0) {
+							pageState.group_editor_diff = undefined;
+						} else {
+							pageState.group_editor_diff = newValue;
+						}
+					} else {
+						pageState.group_editor_diff = jsondiffpatch.diff(event.value, newValue);
+					}
+					console.log("newValue", newValue, "pageState.group_editor_diff", pageState.group_editor_diff);
+					pageState.group_editorNewEffects = events.evaluate(newValue);
+				} catch (e) {
+					diff.innerHTML = "";
+					diff.innerText = e;
+					diff.classList.add("error");
+					effects.classList.add("hidden");
+					submit.disabled = true;
+					return;
+				}
+				diff.classList.remove("error");
+				console.log(pageState.group_editor_diff);
+				if (pageState.group_editor_diff === undefined) {
+					if (event === undefined) {
+						diff.innerHTML = "empty";
+					} else {
+						diff.innerHTML = "no changes";
+					}
+					submit.disabled = true;
+					leave.innerText = "Return";
+					effects.classList.add("hidden");
+				} else {
+					if (event === undefined) {
+						diff.innerHTML = "";
+					} else {
+						diff.innerHTML = jsondiffpatch.formatters.html.format(pageState.group_editor_diff, event.value);
+						jsondiffpatch.formatters.html.hideUnchanged();
+					}
+					submit.disabled = false;
+					leave.innerText = "Discard";
+					effects.classList.remove("hidden");
+					if (event === undefined) {
+						effects.textContent = (
+							"Effects of this event: " +
+							JSON.stringify(effectsSub(pageState.group_editorNewEffects))
+						);
+					} else {
+						effects.textContent = (
+							"Effects of this event: " +
+							JSON.stringify(effectsSub(pageState.group_editorNewEffects)) + ". " +
+							"Effects of this edit action: " +
+							JSON.stringify(effectsSub(pageState.group_editorNewEffects, pageState.group_editorStartingEffects))
+						);
+					}
+				}
+			});
+			*/
+
+			connect();
+		});
+		</script>
+		<div id="status" class="main_element">
+			<span id="status_info" class="error">Javascript failure</span>
+			<span id="login_info" class="hidden">
+				Logged in as <span id="uid_display"></span>
+				<button id="logout_button">Logout</button>
+			</span>
+		</div>
+		<div id="login_prompt" class="hidden" class="main_element">
+			<form id="login_form">
+				<label>Username<br/><input name="user" type="text" autocomplete="username"/><br></label>
+				<label>Password<br/><input name="password" type="password" autocomplete="current-password"/><br></label>
+				<label>Remember me<br/><input name="remember" type="checkbox" checked="true"/><br></label>
+				<button name="submit" type="submit">Login</button>
+			</form>
+		</div>
+		<div id="main" class="hidden" class="main_element">
+			<div class="tabs">
+				<input id="balance-tab" type="radio" name="mainTabs"/>
+				<label for="balance-tab" class="tabL0">Balance</label>
+				<div>
+					<span id="current_balance"></span>
+				</div>
+
+				<input id="events-tab" type="radio" name="mainTabs"/>
+				<label for="events-tab" class="tabL1">Events</label>
+				<div>
+					<button id="event_create_button">Create new event</button>
+					<table>
+						<thead>
+							<tr>
+								<th>idx</th>
+								<th>effects</th>
+								<th>json</th>
+								<th>actions</th>
+							</tr>
+						</thead>
+						<tbody id="event_table"/>
+					</table>
+				</div>
+				<input id="groups-tab" type="radio" name="mainTabs" checked="true"/>
+				<label for="groups-tab" class="tabR1">Groups</label>
+				<div>
+					<h3>My groups</h3>
+					<table>
+						<thead>
+							<tr>
+								<th>ID</th>
+								<th>Name</th>
+								<th>Created</th>
+								<th>Created by</th>
+								<th>Last change</th>
+								<th>Members</th>
+							</tr>
+						</thead>
+						<tbody id="groups_table"/>
+					</table>
+				</div>
+
+				<input id="users-tab" type="radio" name="mainTabs"/>
+				<label for="users-tab" class="tabR0">Users</label>
+				<div>
+					<h3>My account</h3>
+						<table class="borderless">
+							<tbody>
+								<tr><td>User ID</td><td id="my_account_uid"></td><td></td></tr>
+								<tr><td>Name</td><td><input type="text" id="my_account_name" autocomplete="off"></td><td><button id="my_account_name_update">Update</button></td></tr>
+								<tr><td>Email</td><td><input type="text" id="my_account_email" autocomplete="off"></td><td><button id="my_account_email_update">Update</button> <span id="my_account_email_update_request" class="tooltip_container hidden">Update confirmation email pending <button id="my_account_email_update_abort">Abort</button><span class="tooltip">tooltip</span></span></td></tr>
+								<tr><td>Added</td><td id="my_account_added"></td></tr>
+								<tr><td>Added By</td><td id="my_account_added_by"></td></tr>
+								<tr><td>Last password change</td><td id="my_account_last_password_change"></td><td><button id="my_account_password_change">Set new password</button></td></tr>
+								<tr><td></td><td></td><td><button id="my_account_log_me_out">Log me out on all devices</button></td></tr>
+								<tr><td></td><td></td><td><button id="my_account_delete">Delete my account</button></td></tr>
+							</tbody>
+						</table>
+					<h3>Add new user</h3>
+					<button id="add_new_user_button" class="add_new_user_button">Add new user</button>
+					<form id="add_new_user_form" class="sub_element hidden">
+						<label>User ID<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
+						<label>Name<br/><input type="text" name="name" value="" autocomplete="off"><br></label>
+						<label>Email<br/><input type="text" name="email" value="" autocomplete="off"><br></label>
+						<label>Confirm email<br/><input type="text" name="email_confirm" value="" autocomplete="off"><br></label>
+						<button name="submit" type="submit" disabled="true">Add user</button>
+						<button id="add_new_user_form_abort_button" type="button">Abort</button>
+					</form>
+					<h3>Users added by me</h3>
+					<table>
+						<thead>
+							<tr>
+								<th>User ID</th>
+								<th>Name</th>
+								<th>Email</th>
+								<th>Added</th>
+								<th>Activated</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody id="pending_user_table"/>
+					</table>
+				</div>
+			</div>
+		</div>
+		<div id="group_editor" class="hidden">
+			<h3 id="group_editor_heading">editor...</h3>
+			<div id="group_editor_code_editor"></div>
+			<div id="group_editor_controls">
+				<button id="group_editor_submit_button">Submit</button>
+				<button id="group_editor_leave_button">Discard</button>
+			</div>
+			<div id="group_editor_effects"></div>
+			<div id="group_editor_diff"></div>
+		</div>
+	</body>
+</html>

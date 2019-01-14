@@ -4,15 +4,22 @@ const nodemailer = require('nodemailer');
 
 const config = require('./config.js');
 
-const mail_transport = nodemailer.createTransport({
-    host: config.email.host,
-    port: config.email.port,
-    secure: (config.email.port == 465),
-    auth: {
-        user: config.email.user, // generated ethereal user
-        pass: config.email.password // generated ethereal password
+const email_config_to_nm_config = (ec) => {
+    const result = {
+        host: ec.host,
+        port: ec.port,
+        secure: (ec.port == 465),
+        requireTLS: !! ec.requireTLS
+    };
+    if (result.auth) {
+        result.auth = ec.auth;
     }
-});
+    return result;
+};
+
+const mail_transport = nodemailer.createTransport(
+    email_config_to_nm_config(config.email)
+);
 
 module.exports.send_mail = (uid, receiver, subject, text) => {
     if (receiver === null) {

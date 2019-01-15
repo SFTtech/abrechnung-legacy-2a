@@ -21,8 +21,10 @@
 	"email": {
 		"host": "mail.sft.mx",
 		"port": 587,
-		"user": "abrechnung",
-		"password": "Ieb0noS5aidong5ahweeshee1quee7",
+		"auth": {
+			"user": "abrechnung",
+			"password": "Ieb0noS5aidong5ahweeshee1quee7"
+		},
 		"address": "abrechnung@sft.mx"
 	}
 }

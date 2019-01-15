@@ -119,7 +119,9 @@ const on_logged_in = async () => {
 const connect = () => {
     page.status("Connecting...");
 
-    client = new WSClient("wss://abrechnungng.sft.mx:4333", "abrechnung-ng", {
+    const home = window.location.hostname;
+    console.log(`hostname: ${home}`);
+    client = new WSClient(`wss://${home}:4333`, "abrechnung-ng", {
         connect: async () => {
             page.status("Attempting login with token...");
             if (!(await try_login_with_token())) {

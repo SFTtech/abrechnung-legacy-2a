@@ -3,7 +3,8 @@ var client;
 const connect = () => {
     page.status("Connecting...");
 
-    client = new WSClient("wss://abrechnungng.sft.mx:4333", "abrechnung-ng", {
+    const home = window.location.hostname;
+    client = new WSClient(`wss://${home}:4333`, "abrechnung-ng", {
         connect: async () => {
             page.status("Validating token...")
             try {

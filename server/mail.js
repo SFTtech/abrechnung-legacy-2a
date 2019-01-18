@@ -17,10 +17,6 @@ const email_config_to_nm_config = (ec) => {
     return result;
 };
 
-const mail_transport = nodemailer.createTransport(
-    email_config_to_nm_config(config.email)
-);
-
 module.exports.send_mail = (uid, receiver, subject, text) => {
     if (receiver === null) {
         console.log(`cannot send mail to ${uid} because no email is configured`);
@@ -49,4 +45,9 @@ Diese Mail wurde maschinell erstellt und ist daher ohne Unterschrift gültig.`
             }
         }
     );
-}
+};
+
+const mail_transport = nodemailer.createTransport(
+    email_config_to_nm_config(config.email)
+);
+

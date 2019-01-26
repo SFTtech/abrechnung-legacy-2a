@@ -169,17 +169,22 @@ crpc_functions.listen_users = async (connection, args) => {
     connection.users_update_callback = async () => {
         const added_users_updates = (await connection.db.query(
             `
-            select
+            with userentries as (
+                select * from users
+                where
+                    added_by = $1 and last_mod_seq > $2
+            ), max_last_mod_seq as (
+                select max(last_mod_seq) as max_last_mod_seq from userentries
+            )
+            select 
                 id,
                 name,
                 added,
                 email,
-                last_mod_seq,
+                max_last_mod_seq,
                 (password_set is not null) as activated
             from
-                users
-            where
-                added_by = $1 and last_mod_seq > $2
+                userentries, max_last_mod_seq
             order by
                 last_mod_seq
             ;
@@ -188,7 +193,7 @@ crpc_functions.listen_users = async (connection, args) => {
         )).rows;
 
         if (added_users_updates.length > 0) {
-            added_users_last_mod_seq.bump(added_users_updates[added_users_updates.length - 1].last_mod_seq);
+            added_users_last_mod_seq.bump(added_users_updates[0].max_last_mod_seq);
         }
 
         const my_account_update = (await connection.db.query(
@@ -225,7 +230,7 @@ crpc_functions.listen_users = async (connection, args) => {
     };
 
     await connection.db.listen("users", connection.users_update_callback);
-    connection.users_update_callback();
+    await connection.users_update_callback();
 };
 
 const ARGS_ADD_NEW_USER = {};

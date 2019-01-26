@@ -223,10 +223,12 @@ crpc_functions.listen_users = async (connection, args) => {
             my_account_last_mod_seq.bump(my_account_update.last_mod_seq);
         }
 
-        await connection.supd("users_update", {
-            added_users: added_users_updates,
-            my_account: my_account_update
-        });
+        if (added_users_updates.length > 0 || my_account_update) {
+            await connection.supd("users_update", {
+                added_users: added_users_updates,
+                my_account: my_account_update
+            });
+        }
     };
 
     await connection.db.listen("users", connection.users_update_callback);
@@ -305,61 +307,92 @@ crpc_functions.listen_groups = async (connection, args) => {
 
     const self_uid = await connection.get_user();
 
-    const groups_last_mod_seq = new util.MonotonicNumber();
-    const group_memberships_last_mod_seq = new util.MonotonicNumber();
+    const last_mod_seq = new util.MonotonicNumber();
 
     connection.groups_update_callback = async () => {
-        const groups_updates = (await connection.db.query(
+        const added_groups_updates = (await connection.db.query(
             `
+            with groups_of_user as (
+                select groups.*
+                from
+                    groups,
+                    group_memberships
+                where
+                    groups.id = group_memberships.gid and
+                    group_memberships.uid = $1 and
+                    groups.last_mod_seq > $2
+            ), max_last_mod_seq as (
+                select max(last_mod_seq) as max_last_mod_seq from groups_of_user
+            )
             select
-                group.id as id,
-                group.name as name,
-                group.created as created,
-                group.created_by as created_by,
-                group.last_mod_seq as last_mod_seq
+                id,
+                name,
+                created,
+                created_by,
+                max_last_mod_seq
             from
-                groups,
-                group_memberships
-            where
-                groups.id = group_memberships.gid and
-                group_memberships.uid = $1 and
-                (
-                    group.last_mod_seq > $2 or
-                    group_membership.last_mod_seq > $3
-                )
+                groups_of_user, max_last_mod_seq
             order by
-                group.last_mod_seq
+                last_mod_seq
             ;
             `,
-            [self_uid, groups_last_mod_seq.get(), group_memberships_last_mod_seq.get()]
+            [self_uid, last_mod_seq.get()]
         )).rows;
 
-        if (added_users_updates.length > 0) {
-            last_mod_seq.bump(added_users_updates[added_users_updates.length - 1].last_mod_seq);
+        if (added_groups_updates.length > 0) {
+            last_mod_seq.bump(added_groups_updates[0].max_last_mod_seq);
+            await connection.supd("groups_update", {
+                added_groups: added_groups_updates,
+            });
         }
-
-        await connection.db.query(
-            `
-            select
-                group_membership.gid as gid,
-                group_membership.uid as uid
-            from
-                group_membership,
-                group_membership as group_membership2
-            where
-                group_membership.gid = group_membership2.gid and
-                group_membership2.uid = $1
-            `
-        );
-
-        await connection.supd("users_update", {
-            added_users: added_users_updates,
-            my_account: my_account_update
-        });
     };
 
     await connection.db.listen("groups", connection.groups_update_callback);
-    connection.groups_update_callback();
+    await connection.groups_update_callback();
+};
+
+const ARGS_LISTEN_GROUP_MEMBERSHIPS = {};
+
+crpc_functions.listen_group_memberships = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_LISTEN_GROUP_MEMBERSHIPS);
+
+    const self_uid = await connection.get_user();
+
+    const last_mod_seq = new util.MonotonicNumber();
+
+    connection.group_memberships_update_callback = async () => {
+        const added_group_memberships_updates = (await connection.db.query(
+            `
+            with memberships as (
+                select * from group_memberships
+                where
+                    uid = $1 and 
+                    last_mod_seq > $2
+            ), max_last_mod_seq as (
+                select max(last_mod_seq) as max_last_mod_seq from memberships
+            )
+            select
+                gid,
+                uid,
+                max_last_mod_seq
+            from memberships, max_last_mod_seq
+            order by
+                last_mod_seq
+            ;
+            `,
+            [self_uid, last_mod_seq.get()]
+        )).rows;
+
+        if (added_group_memberships_updates.length > 0) {
+            last_mod_seq.bump(added_group_memberships_updates[0].max_last_mod_seq);
+            await connection.supd("group_memberships_update", {
+                added_group_memberships: added_group_memberships_updates,
+            });
+        }
+    };
+
+    await connection.db.listen("group_memberships", connection.group_memberships_update_callback);
+    await connection.group_memberships_update_callback();
 };
 
 

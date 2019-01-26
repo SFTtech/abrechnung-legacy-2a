@@ -46,6 +46,7 @@ class DB {
 
     /* drops all existing tables and creates all tables as required */
     async factory_reset(user, email, password) {
+        await this.query("drop owned by abrechnung cascade;");
         await this.query(await util.read_file(__dirname + "/database_setup.sql", "utf-8"));
     }
 

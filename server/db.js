@@ -52,7 +52,14 @@ class DB {
 
     /* sets a callback which is executed when a certain notification has been received */
     async listen(notification_topic, callback) {
-        this.callbacks[notification_topic] = callback;
+        this.callbacks[notification_topic] = async () => {
+            try {
+                await callback();
+            } catch (exception) {
+                console.log(exception);
+                // FIXME: ignore error for now
+            }
+        }
 
         // listen doesn't support prepared statements.
         if (!util.is_string_safe(notification_topic)) {

@@ -114,6 +114,7 @@ const abort_update_email = async () => {
 const on_logged_in = async () => {
     await client.crpc("listen_users", {});
     await client.crpc("listen_groups", {});
+    await client.crpc("listen_group_memberships", {});
 };
 
 const connect = () => {

@@ -1,10 +1,9 @@
-'use strict';
+"use strict";
 
 const util = require("./util.js");
-const cache = require("./cache.js");
 const websocket_server = require("./websocket_server.js");
 const typecheck = require("./eval/typecheck.js");
-const evaluate_group = require('./eval/group.js').evaluate;
+const evaluate_group = require("./eval/group.js").evaluate;
 
 
 const state = {
@@ -154,7 +153,7 @@ crpc_functions.set_password = async (connection, args) => {
     await connection.db.pop_set_password_token(args.uid, args.set_password_token);
 
     return await connection.db.set_password(args.uid, args.password);
-}
+};
 
 const ARGS_LISTEN_USERS = {};
 
@@ -444,6 +443,6 @@ rpc_functions.add_update = async (connection, request) => {
 
 const main = async() => {
     await websocket_server(on_open, crpc_functions, on_close);
-}
+};
 
-main().then(result => console.log("server is running"));
+main().then(() => console.log("server is running"));

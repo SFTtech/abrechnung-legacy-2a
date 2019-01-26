@@ -53,6 +53,7 @@ class DB {
     /* sets a callback which is executed when a certain notification has been received */
     async listen(notification_topic, callback) {
         this.callbacks[notification_topic] = async () => {
+            // we need to catch this exception because it would otherwise become an unhandled promise rejection
             try {
                 await callback();
             } catch (exception) {

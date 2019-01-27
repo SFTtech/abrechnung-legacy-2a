@@ -316,7 +316,7 @@ crpc_functions.listen_groups = async (connection, args) => {
     const last_mod_seq = new util.MonotonicNumber();
 
     const groups_update_callback = async () => {
-        const added_groups_updates = (await connection.db.query(
+        const groups_updates = (await connection.db.query(
             `
             with groups_of_user as (
                 select groups.*
@@ -345,10 +345,10 @@ crpc_functions.listen_groups = async (connection, args) => {
             [self_uid, last_mod_seq.get()]
         )).rows;
 
-        if (added_groups_updates.length > 0) {
-            last_mod_seq.bump(added_groups_updates[0].max_last_mod_seq);
+        if (groups_updates.length > 0) {
+            last_mod_seq.bump(groups_updates[0].max_last_mod_seq);
             await connection.supd("groups_update", {
-                added_groups: added_groups_updates,
+                groups: groups_updates,
             });
         }
     };
@@ -367,7 +367,7 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
     const last_mod_seq = new util.MonotonicNumber();
 
     const group_memberships_update_callback = async () => {
-        const added_group_memberships_updates = (await connection.db.query(
+        const group_memberships_updates = (await connection.db.query(
             `
             with memberships as (
                 select * from group_memberships
@@ -389,10 +389,10 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
             [self_uid, last_mod_seq.get()]
         )).rows;
 
-        if (added_group_memberships_updates.length > 0) {
-            last_mod_seq.bump(added_group_memberships_updates[0].max_last_mod_seq);
+        if (group_memberships_updates.length > 0) {
+            last_mod_seq.bump(group_memberships_updates[0].max_last_mod_seq);
             await connection.supd("group_memberships_update", {
-                added_group_memberships: added_group_memberships_updates,
+                group_memberships: group_memberships_updates,
             });
         }
     };

@@ -157,6 +157,13 @@ crpc_functions.set_password = async (connection, args) => {
 
 const ARGS_LISTEN_USERS = {};
 
+/**
+ * It is no problem if a client calls this several times. If a client calls
+ * it, an already installed calback ist replaced by a new one and the
+ * counters are reset to 0 and so a complete update is sent.
+ * The old callback will be freed by as soon it completes.
+ * A client can use this behaviour to resync.
+ */
 crpc_functions.listen_users = async (connection, args) => {
     typecheck.validate_object_structure(args, ARGS_LISTEN_USERS);
 

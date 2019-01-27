@@ -171,6 +171,7 @@ crpc_functions.listen_users = async (connection, args) => {
 
     const added_users_last_mod_seq = new util.MonotonicNumber();
     const my_account_last_mod_seq = new util.MonotonicNumber();
+    const users_last_mod_seq = new util.MonotonicNumber();
 
     const users_update_callback = async () => {
         const added_users_updates = (await connection.db.query(
@@ -229,10 +230,46 @@ crpc_functions.listen_users = async (connection, args) => {
             my_account_last_mod_seq.bump(my_account_update.last_mod_seq);
         }
 
+        const users_update = (await connection.db.query(
+            `
+            with users_of_groups_of_user as (
+                select users.*
+                from
+                    users,
+                    group_memberships as gm1,
+                    group_memberships as gm2
+                where
+                    users.id = gm1.uid and
+                    gm1.gid = gm2.gid and
+                    gm2.uid = $1 and
+                    last_mod_seq > $2
+            ), max_last_mod_seq as (
+                select max(last_mod_seq) as max_last_mod_seq from users_of_groups_of_user
+            )
+            select
+                distinct id,
+                name,
+                created,
+                created_by,
+                max_last_mod_seq
+            from
+                users_of_groups_of_user, max_last_mod_seq
+            order by
+                last_mod_seq
+            ;
+            `,
+            [self_uid, users_last_mod_seq]
+        )).rows;
+
+        if (users_update.length > 0) {
+            users_last_mod_seq.bump(users_update.last_mod_seq);
+        }
+
         if (added_users_updates.length > 0 || my_account_update) {
             await connection.supd("users_update", {
                 added_users: added_users_updates,
-                my_account: my_account_update
+                my_account: my_account_update,
+                users: users_update
             });
         }
     };

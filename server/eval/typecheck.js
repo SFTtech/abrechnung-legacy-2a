@@ -15,12 +15,17 @@ module.exports.object = (object) => ((typeof object === "object") && !Array.isAr
 module.exports.bool = (object) => (object === true) || (object === false);
 module.exports.number = Number.isFinite;
 module.exports.number_nonnegative = (object) => (Number.isFinite(object) && (object >= 0));
+module.exports.integer = Number.isInteger;
+module.exports.positive = (object) => (object > 0);
+module.exports.nonnegative = (object) => (object >= 0);
 module.exports.string = (object) => ((typeof object) === "string");
 module.exports.string_nz = (object) => (((typeof object) === "string") && (object !== ""));
 module.exports.string_re = (re) => (object) => (((typeof object) === "string") && object.match(re));
 module.exports.string_email = module.exports.string_re(/^[a-zA-Z0-9.+,-]+@[a-zA-Z0-9.-]+$/);
 module.exports.choice = (set) => (object) => set.has(object);
 module.exports.optional = (inner_type) => (object) => ((object === undefined) || inner_type(object));
+module.exports.multicheck = (checks) => (object) => (checks.every( (check) => (check(object)) ));
+
 
 module.exports.validate_object_structure = (object, types) => {
     // check that all required properties exist and have the correct type
@@ -67,3 +72,11 @@ module.exports.validate_email = (email) => {
         throw Error("bad email");
     }
 }
+
+/**
+ * ignores entries which are unset, that is: have never been assigned a value or the entry was deleted
+ * for a = [ 1, 2, , 4 ] only 1, 2 and 4 will be checked
+ * it though does check for entries which have an undefined value
+ * for a = [ 1, 2, undef, 4 ] all entries will be checked
+ */
+module.exports.array_of_type = (inner_type_check) => (object) => (Array.isArray(object) && object.every(inner_type_check, true));

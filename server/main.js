@@ -401,6 +401,55 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
     await group_memberships_update_callback();
 };
 
+const ARGS_GET_GROUPS_BY_ID = {};
+ARGS_GET_GROUPS_BY_ID.ids = typecheck.array_of_type(typecheck.multicheck([typecheck.integer, typecheck.positive]));
+ARGS_GET_GROUPS_BY_ID.last_mod_seq = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);
+
+crpc_functions.get_groups_by_id = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_GET_GROUPS_BY_ID);
+
+    const self_uid = await connection.get_user();
+
+    const ids = args.ids.filter( () => true ); 		// make array dense: remove any elem which is unset
+
+    if (ids.length === 0) {
+        return { "groups": [] };
+    }
+
+    let paramnr = 2;
+    const callparams = ids.map( () => "$"+(paramnr++) ).join(",");
+
+    const groups = (await connection.db.query(
+        `
+        with groups_of_user as (
+            select groups.*
+            from
+                groups,
+                group_memberships
+            where
+                groups.id = group_memberships.gid and
+                group_memberships.uid = $1 and
+                groups.id in (${callparams})
+        ), max_last_mod_seq as (
+            select max(last_mod_seq) as max_last_mod_seq from groups_of_user
+        )
+        select
+            id,
+            name,
+            created,
+            created_by,
+            max_last_mod_seq
+        from
+            groups_of_user, max_last_mod_seq
+        order by
+            last_mod_seq
+        ;
+        `,
+        [self_uid].concat(ids)
+    )).rows;
+
+    return { "groups": groups };
+};
 
 const main = async() => {
     await websocket_server(on_open, crpc_functions, on_close);

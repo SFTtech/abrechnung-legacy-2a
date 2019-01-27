@@ -402,52 +402,6 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
 };
 
 
-/*
-rpc_functions.listen_group_invites = async (connection, request) => {
-    await require_login(connection);
-    var updateDump = db.dumpUpdates(request.from);
-    for (let update of updateDump) {
-        update.type = "update";
-        update.contenthash = util.sha256(update.json + update.comment);
-        // TODO (data protection): decide whether this update concerns the user.
-        if (!true) {
-            delete update.json;
-            delete update.comment;
-        }
-        connection.sendUTF(JSON.stringify(update));
-    }
-    state.listeners[connection.connectionIdx] = connection;
-    return {pending: updateDump.length};
-};
-*/
-
-/*
-rpc_functions.add_update = async (connection, request) => {
-    // the user needs to be logged in to submit an update
-    var author = await requireLogin(connection);
-    // create the update, validate it, and apply it to the event cache
-    var update = updates.createAndApply(author, request.mode, request.json, request.comment, request.event, cache.events, cache.latestUpdateHash);
-    // write the update to the database
-    db.addUpdate(update);
-    cache.latestUpdateHash = updates.hash(update);
-    // send the update to all connected listeners
-    update.type = "update";
-    var updateJSON = JSON.stringify(update);
-    delete update.json;
-    delete update.comment;
-    var updateJSONCensored = JSON.stringify(update);
-    for (let connectionIdx of Object.keys(state.listeners)) {
-        // TODO (data protection): decide whether this update concerns the user.
-        if (true) {
-            state.listeners[connectionIdx].sendUTF(updateJSON);
-        } else {
-            state.listeners[connectionIdx].sendUTF(updateJSONCensored);
-        }
-    }
-    return { idx: update.idx, event: update.event };
-}
-*/
-
 const main = async() => {
     await websocket_server(on_open, crpc_functions, on_close);
 };

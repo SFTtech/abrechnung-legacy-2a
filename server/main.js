@@ -417,6 +417,9 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
             select
                 gid,
                 uid,
+                added,
+                added_by,
+                role,
                 max_last_mod_seq
             from memberships, max_last_mod_seq
             order by

@@ -165,7 +165,7 @@ crpc_functions.listen_users = async (connection, args) => {
     const added_users_last_mod_seq = new util.MonotonicNumber();
     const my_account_last_mod_seq = new util.MonotonicNumber();
 
-    connection.users_update_callback = async () => {
+    const users_update_callback = async () => {
         const added_users_updates = (await connection.db.query(
             `
             with userentries as (
@@ -230,8 +230,8 @@ crpc_functions.listen_users = async (connection, args) => {
         }
     };
 
-    await connection.db.listen("users", connection.users_update_callback);
-    await connection.users_update_callback();
+    await connection.db.listen("users", users_update_callback);
+    await users_update_callback();
 };
 
 const ARGS_ADD_NEW_USER = {};
@@ -308,7 +308,7 @@ crpc_functions.listen_groups = async (connection, args) => {
 
     const last_mod_seq = new util.MonotonicNumber();
 
-    connection.groups_update_callback = async () => {
+    const groups_update_callback = async () => {
         const added_groups_updates = (await connection.db.query(
             `
             with groups_of_user as (
@@ -346,8 +346,8 @@ crpc_functions.listen_groups = async (connection, args) => {
         }
     };
 
-    await connection.db.listen("groups", connection.groups_update_callback);
-    await connection.groups_update_callback();
+    await connection.db.listen("groups", groups_update_callback);
+    await groups_update_callback();
 };
 
 const ARGS_LISTEN_GROUP_MEMBERSHIPS = {};
@@ -359,7 +359,7 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
 
     const last_mod_seq = new util.MonotonicNumber();
 
-    connection.group_memberships_update_callback = async () => {
+    const group_memberships_update_callback = async () => {
         const added_group_memberships_updates = (await connection.db.query(
             `
             with memberships as (
@@ -390,8 +390,8 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
         }
     };
 
-    await connection.db.listen("group_memberships", connection.group_memberships_update_callback);
-    await connection.group_memberships_update_callback();
+    await connection.db.listen("group_memberships", group_memberships_update_callback);
+    await group_memberships_update_callback();
 };
 
 

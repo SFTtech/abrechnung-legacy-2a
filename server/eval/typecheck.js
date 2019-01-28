@@ -16,8 +16,6 @@ module.exports.bool = (object) => (object === true) || (object === false);
 module.exports.number = Number.isFinite;
 module.exports.number_nonnegative = (object) => (Number.isFinite(object) && (object >= 0));
 module.exports.integer = Number.isInteger;
-module.exports.positive = (object) => (object > 0);
-module.exports.nonnegative = (object) => (object >= 0);
 module.exports.string = (object) => ((typeof object) === "string");
 module.exports.string_nz = (object) => (((typeof object) === "string") && (object !== ""));
 module.exports.string_re = (re) => (object) => (((typeof object) === "string") && object.match(re));
@@ -27,6 +25,10 @@ module.exports.choice = (set) => (object) => set.has(object);
 module.exports.optional = (inner_type) => (object) => ((object === undefined) || inner_type(object));
 module.exports.multicheck = (checks) => (object) => (checks.every( (check) => (check(object)) ));
 
+// these checks may only be used together with a check which ensures it is a number
+// for example: multicheck( [ integer, positive ] )
+module.exports.positive = (object) => (object > 0);
+module.exports.nonnegative = (object) => (object >= 0);
 
 module.exports.validate_object_structure = (object, types) => {
     // check that all required properties exist and have the correct type

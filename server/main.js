@@ -230,6 +230,7 @@ crpc_functions.listen_users = async (connection, args) => {
             my_account_last_mod_seq.bump(my_account_update.last_mod_seq);
         }
 
+        // keep in sync with query in crpc_functions.get_users_by_id
         const users_update = (await connection.db.query(
             `
             with users_of_groups_of_user as (
@@ -353,6 +354,7 @@ crpc_functions.listen_groups = async (connection, args) => {
     const last_mod_seq = new util.MonotonicNumber();
 
     const groups_update_callback = async () => {
+        // keep in sync with query in crpc_functions.get_groups_by_id
         const groups_updates = (await connection.db.query(
             `
             with groups_of_user as (
@@ -460,6 +462,7 @@ crpc_functions.get_groups_by_id = async (connection, args) => {
     let paramnr = 2;
     const callparams = ids.map( () => "$"+(paramnr++) ).join(",");
 
+    // // keep in sync with query in crpc_functions.listen_groups
     const groups = (await connection.db.query(
         `
         with groups_of_user as (
@@ -510,6 +513,7 @@ crpc_functions.get_users_by_id = async (connection, args) => {
     let paramnr = 2;
     const callparams = ids.map( () => "$"+(paramnr++) ).join(",");
 
+    // keep in sync with query in crpc_functions.listen_users
     const users = (await connection.db.query(
         `
         with users_of_groups_of_user as (

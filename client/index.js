@@ -3,6 +3,10 @@ var store;
 
 // for this session only.
 var cache = {};
+cache.users = new Cache(["id"], ["id"]);
+cache.added_users = new Cache(["id"], ["id"]);
+cache.groups = new Cache(["id"], ["id"]);
+cache.group_memberships = new Cache(["uid", "gid"], ["uid", "gid"]);
 
 // the websocket client
 var client;
@@ -114,6 +118,7 @@ const abort_update_email = async () => {
 const on_logged_in = async () => {
     await client.crpc("listen_users", {});
     await client.crpc("listen_groups", {});
+    await client.crpc("listen_group_memberships", {});
 };
 
 const connect = () => {
@@ -135,28 +140,119 @@ const connect = () => {
     }, true);
 
     client.srpcs.users_update = async (args) => {
-        for (added_user_update of args.added_users)
-        {
-            page.table_update_added_user(
-                added_user_update.id,
-                added_user_update.name,
-                added_user_update.email,
-                added_user_update.added,
-                added_user_update.activated
+        const added_users = args.added_users;
+        if (added_users.length > 0) {
+            const max_last_mod_seq = added_users[0].max_last_mod_seq;
+            cache.added_users.insert_or_update(added_users, max_last_mod_seq);
+
+            for (const added_user_update of added_users) {
+                page.table_update_added_user(
+                    added_user_update.id,
+                    added_user_update.name,
+                    added_user_update.email,
+                    added_user_update.added,
+                    added_user_update.activated
+                );
+            }
+        }
+
+        const my_account = args.my_account;
+        if (my_account) {
+            cache.my_account = my_account;
+            page.update_my_account(
+                my_account.id,
+                my_account.name,
+                my_account.email,
+                my_account.added,
+                my_account.added_by,
+                my_account.password_set,
+                my_account.email_update_request,
+                my_account.email_update_request_timestamp
             );
         }
 
-        if (args.my_account) {
-            page.update_my_account(
-                args.my_account.id,
-                args.my_account.name,
-                args.my_account.email,
-                args.my_account.added,
-                args.my_account.added_by,
-                args.my_account.password_set,
-                args.my_account.email_update_request,
-                args.my_account.email_update_request_timestamp
-            );
+        const users_of_groups_of_user = args.users;
+        if (users_of_groups_of_user.length > 0) {
+            const max_last_mod_seq = users_of_groups_of_user[0].max_last_mod_seq;
+            cache.users.insert_or_update(users_of_groups_of_user, max_last_mod_seq);
         }
     };
+
+    client.srpcs.groups_update = async (args) => {
+        // updates contain at least one entry !!!
+        const groups = args.groups;
+        const max_last_mod_seq = groups[0].max_last_mod_seq;
+
+        const changes = cache.groups.insert_or_update(groups, max_last_mod_seq);
+        if (! changes) {
+            return;
+        }
+
+        for (const group_update of groups) {
+            console.log("added group", group_update);
+        }
+    };
+
+    client.srpcs.group_memberships_update = async (args) => {
+        // updates contain at least one entry !!!
+        const group_memberships = args.group_memberships;
+        const max_last_mod_seq = group_memberships[0].max_last_mod_seq;
+
+        const changes = cache.group_memberships.insert_or_update(group_memberships, max_last_mod_seq);
+        if (! changes) {
+            return;
+        }
+
+        const missing_gids = group_memberships.map(
+            (elem) => (elem.gid)
+        ).filter(
+            (elem) => (! cache.groups.has([elem.gid]))
+        );
+        const missing_uids = group_memberships.map(
+            (elem) => (elem.uid)
+        ).filter(
+            (elem) => (! cache.users.has([elem.gid]))
+        );
+
+        if (missing_gids.length > 0) {
+            const missing_groups = (await client.crpc("get_groups_by_id", {
+                "ids": missing_gids,
+                "last_mod_seq": 0
+            })).groups;
+
+            if (missing_groups.length > 0) {
+                cache.groups.insert_or_update(missing_groups, missing_groups[0].max_last_mod_seq);
+            }
+            // FIXME: check if we did not get all groups
+        }
+
+        if (missing_uids.length > 0) {
+            const missing_users = (await client.crpc("get_users_by_id", {
+                "ids": missing_uids,
+                "last_mod_seq": 0
+            })).users;
+
+            if (missing_users.length > 0) {
+                cache.users.insert_or_update(missing_users, missing_users[0].max_last_mod_seq);
+            }
+            // FIXME: check if we did not get all users
+        }
+
+        for (const membership of group_memberships) {
+            let gid = membership.gid;
+            let uid = membership.uid;
+            console.log("added group_membership", membership);
+            if (! cache.groups.has([gid])) {
+                console.log("group is missing", gid);
+            } else {
+                console.log("group =", cache.groups.get([gid]));
+            }
+            if (! cache.users.has([uid])) {
+                console.log("user is missing", uid);
+            } else {
+                console.log("group =", cache.users.get([uid]));
+            }
+        }
+    };
+
 };

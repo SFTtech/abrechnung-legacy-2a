@@ -1,10 +1,9 @@
-'use strict';
+"use strict";
 
 const util = require("./util.js");
-const cache = require("./cache.js");
 const websocket_server = require("./websocket_server.js");
 const typecheck = require("./eval/typecheck.js");
-const evaluate_group = require('./eval/group.js').evaluate;
+const evaluate_group = require("./eval/group.js").evaluate;
 
 
 const state = {
@@ -154,10 +153,17 @@ crpc_functions.set_password = async (connection, args) => {
     await connection.db.pop_set_password_token(args.uid, args.set_password_token);
 
     return await connection.db.set_password(args.uid, args.password);
-}
+};
 
 const ARGS_LISTEN_USERS = {};
 
+/**
+ * It is no problem if a client calls this several times. If a client calls
+ * it, an already installed calback ist replaced by a new one and the
+ * counters are reset to 0 and so a complete update is sent.
+ * The old callback will be freed by as soon it completes.
+ * A client can use this behaviour to resync.
+ */
 crpc_functions.listen_users = async (connection, args) => {
     typecheck.validate_object_structure(args, ARGS_LISTEN_USERS);
 
@@ -165,8 +171,9 @@ crpc_functions.listen_users = async (connection, args) => {
 
     const added_users_last_mod_seq = new util.MonotonicNumber();
     const my_account_last_mod_seq = new util.MonotonicNumber();
+    const users_last_mod_seq = new util.MonotonicNumber();
 
-    connection.users_update_callback = async () => {
+    const users_update_callback = async () => {
         const added_users_updates = (await connection.db.query(
             `
             with userentries as (
@@ -223,14 +230,53 @@ crpc_functions.listen_users = async (connection, args) => {
             my_account_last_mod_seq.bump(my_account_update.last_mod_seq);
         }
 
-        await connection.supd("users_update", {
-            added_users: added_users_updates,
-            my_account: my_account_update
-        });
+        // keep in sync with query in crpc_functions.get_users_by_id
+        const users_update = (await connection.db.query(
+            `
+            with users_of_groups_of_user as (
+                select users.*
+                from
+                    users,
+                    group_memberships as gm1,
+                    group_memberships as gm2
+                where
+                    users.id = gm1.uid and
+                    gm1.gid = gm2.gid and
+                    gm2.uid = $1 and
+                    users.last_mod_seq > $2
+            ), max_last_mod_seq as (
+                select max(last_mod_seq) as max_last_mod_seq from users_of_groups_of_user
+            )
+            select distinct
+                id,
+                name,
+                added,
+                added_by,
+                max_last_mod_seq
+            from
+                users_of_groups_of_user, max_last_mod_seq
+            order by
+                id
+            ;
+            `,
+            [self_uid, users_last_mod_seq.get()]
+        )).rows;
+
+        if (users_update.length > 0) {
+            users_last_mod_seq.bump(users_update[0].last_mod_seq);
+        }
+
+        if (added_users_updates.length > 0 || my_account_update || users_update.length > 0) {
+            await connection.supd("users_update", {
+                "added_users": added_users_updates,
+                "my_account": my_account_update,
+                "users": users_update
+            });
+        }
     };
 
-    await connection.db.listen("users", connection.users_update_callback);
-    await connection.users_update_callback();
+    await connection.db.listen("users", users_update_callback);
+    await users_update_callback();
 };
 
 const ARGS_ADD_NEW_USER = {};
@@ -305,112 +351,205 @@ crpc_functions.listen_groups = async (connection, args) => {
 
     const self_uid = await connection.get_user();
 
-    const groups_last_mod_seq = new util.MonotonicNumber();
-    const group_memberships_last_mod_seq = new util.MonotonicNumber();
+    const last_mod_seq = new util.MonotonicNumber();
 
-    connection.groups_update_callback = async () => {
+    const groups_update_callback = async () => {
+        // keep in sync with query in crpc_functions.get_groups_by_id
         const groups_updates = (await connection.db.query(
             `
+            with groups_of_user as (
+                select groups.*
+                from
+                    groups,
+                    group_memberships
+                where
+                    groups.id = group_memberships.gid and
+                    group_memberships.uid = $1 and
+                    groups.last_mod_seq > $2
+            ), max_last_mod_seq as (
+                select max(last_mod_seq) as max_last_mod_seq from groups_of_user
+            )
             select
-                group.id as id,
-                group.name as name,
-                group.created as created,
-                group.created_by as created_by,
-                group.last_mod_seq as last_mod_seq
+                id,
+                name,
+                created,
+                created_by,
+                max_last_mod_seq
+            from
+                groups_of_user, max_last_mod_seq
+            order by
+                last_mod_seq
+            ;
+            `,
+            [self_uid, last_mod_seq.get()]
+        )).rows;
+
+        if (groups_updates.length > 0) {
+            last_mod_seq.bump(groups_updates[0].max_last_mod_seq);
+            await connection.supd("groups_update", {
+                groups: groups_updates,
+            });
+        }
+    };
+
+    await connection.db.listen("groups", groups_update_callback);
+    await groups_update_callback();
+};
+
+const ARGS_LISTEN_GROUP_MEMBERSHIPS = {};
+
+crpc_functions.listen_group_memberships = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_LISTEN_GROUP_MEMBERSHIPS);
+
+    const self_uid = await connection.get_user();
+
+    const last_mod_seq = new util.MonotonicNumber();
+
+    const group_memberships_update_callback = async () => {
+        const group_memberships_updates = (await connection.db.query(
+            `
+            with memberships as (
+                select * from group_memberships
+                where
+                    uid = $1 and 
+                    last_mod_seq > $2
+            ), max_last_mod_seq as (
+                select max(last_mod_seq) as max_last_mod_seq from memberships
+            )
+            select
+                gid,
+                uid,
+                added,
+                added_by,
+                role,
+                max_last_mod_seq
+            from memberships, max_last_mod_seq
+            order by
+                last_mod_seq
+            ;
+            `,
+            [self_uid, last_mod_seq.get()]
+        )).rows;
+
+        if (group_memberships_updates.length > 0) {
+            last_mod_seq.bump(group_memberships_updates[0].max_last_mod_seq);
+            await connection.supd("group_memberships_update", {
+                group_memberships: group_memberships_updates,
+            });
+        }
+    };
+
+    await connection.db.listen("group_memberships", group_memberships_update_callback);
+    await group_memberships_update_callback();
+};
+
+const ARGS_GET_GROUPS_BY_ID = {};
+ARGS_GET_GROUPS_BY_ID.ids = typecheck.array_of_type(typecheck.multicheck([typecheck.integer, typecheck.positive]));
+ARGS_GET_GROUPS_BY_ID.last_mod_seq = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);
+
+crpc_functions.get_groups_by_id = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_GET_GROUPS_BY_ID);
+
+    const self_uid = await connection.get_user();
+
+    // make array dense: remove any elem which is unset
+    const ids = args.ids.filter( () => true );
+
+    if (ids.length === 0) {
+        return { "groups": [] };
+    }
+
+    let paramnr = 2;
+    const callparams = ids.map( () => "$"+(paramnr++) ).join(",");
+
+    // // keep in sync with query in crpc_functions.listen_groups
+    const groups = (await connection.db.query(
+        `
+        with groups_of_user as (
+            select groups.*
             from
                 groups,
                 group_memberships
             where
                 groups.id = group_memberships.gid and
                 group_memberships.uid = $1 and
-                (
-                    group.last_mod_seq > $2 or
-                    group_membership.last_mod_seq > $3
-                )
-            order by
-                group.last_mod_seq
-            ;
-            `,
-            [self_uid, groups_last_mod_seq.get(), group_memberships_last_mod_seq.get()]
-        )).rows;
+                groups.id in (${callparams})
+        ), max_last_mod_seq as (
+            select max(last_mod_seq) as max_last_mod_seq from groups_of_user
+        )
+        select
+            id,
+            name,
+            created,
+            created_by,
+            max_last_mod_seq
+        from
+            groups_of_user, max_last_mod_seq
+        order by
+            last_mod_seq
+        ;
+        `,
+        [self_uid].concat(ids)
+    )).rows;
 
-        if (added_users_updates.length > 0) {
-            last_mod_seq.bump(added_users_updates[added_users_updates.length - 1].last_mod_seq);
-        }
+    return { "groups": groups };
+};
 
-        await connection.db.query(
-            `
-            select
-                group_membership.gid as gid,
-                group_membership.uid as uid
+const ARGS_GET_USERS_BY_ID = {};
+ARGS_GET_USERS_BY_ID.ids = typecheck.array_of_type(typecheck.string_uid);
+ARGS_GET_USERS_BY_ID.last_mod_seq = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);
+
+crpc_functions.get_users_by_id = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_GET_USERS_BY_ID);
+
+    const self_uid = await connection.get_user();
+
+    const ids = args.ids.filter( () => true ); 		// make array dense: remove any elem which is unset
+
+    if (ids.length === 0) {
+        return { "users": [] };
+    }
+
+    let paramnr = 2;
+    const callparams = ids.map( () => "$"+(paramnr++) ).join(",");
+
+    // keep in sync with query in crpc_functions.listen_users
+    const users = (await connection.db.query(
+        `
+        with users_of_groups_of_user as (
+            select users.*
             from
-                group_membership,
-                group_membership as group_membership2
+                users,
+                group_memberships as gm1,
+                group_memberships as gm2
             where
-                group_membership.gid = group_membership2.gid and
-                group_membership2.uid = $1
-            `
-        );
+                users.id = gm1.uid and
+                gm1.gid = gm2.gid and
+                gm2.uid = $1 and
+                users.id in (${callparams})
+        ), max_last_mod_seq as (
+            select max(last_mod_seq) as max_last_mod_seq from users_of_groups_of_user
+        )
+        select distinct
+            id,
+            name,
+            added,
+            added_by,
+            max_last_mod_seq
+        from
+            users_of_groups_of_user, max_last_mod_seq
+        order by
+            id
+        ;
+        `,
+        [self_uid].concat(ids)
+    )).rows;
 
-        await connection.supd("users_update", {
-            added_users: added_users_updates,
-            my_account: my_account_update
-        });
-    };
-
-    await connection.db.listen("groups", connection.groups_update_callback);
-    connection.groups_update_callback();
+    return { "users": users };
 };
-
-
-/*
-rpc_functions.listen_group_invites = async (connection, request) => {
-    await require_login(connection);
-    var updateDump = db.dumpUpdates(request.from);
-    for (let update of updateDump) {
-        update.type = "update";
-        update.contenthash = util.sha256(update.json + update.comment);
-        // TODO (data protection): decide whether this update concerns the user.
-        if (!true) {
-            delete update.json;
-            delete update.comment;
-        }
-        connection.sendUTF(JSON.stringify(update));
-    }
-    state.listeners[connection.connectionIdx] = connection;
-    return {pending: updateDump.length};
-};
-*/
-
-/*
-rpc_functions.add_update = async (connection, request) => {
-    // the user needs to be logged in to submit an update
-    var author = await requireLogin(connection);
-    // create the update, validate it, and apply it to the event cache
-    var update = updates.createAndApply(author, request.mode, request.json, request.comment, request.event, cache.events, cache.latestUpdateHash);
-    // write the update to the database
-    db.addUpdate(update);
-    cache.latestUpdateHash = updates.hash(update);
-    // send the update to all connected listeners
-    update.type = "update";
-    var updateJSON = JSON.stringify(update);
-    delete update.json;
-    delete update.comment;
-    var updateJSONCensored = JSON.stringify(update);
-    for (let connectionIdx of Object.keys(state.listeners)) {
-        // TODO (data protection): decide whether this update concerns the user.
-        if (true) {
-            state.listeners[connectionIdx].sendUTF(updateJSON);
-        } else {
-            state.listeners[connectionIdx].sendUTF(updateJSONCensored);
-        }
-    }
-    return { idx: update.idx, event: update.event };
-}
-*/
 
 const main = async() => {
     await websocket_server(on_open, crpc_functions, on_close);
-}
+};
 
-main().then(result => console.log("server is running"));
+main().then(() => console.log("server is running"));

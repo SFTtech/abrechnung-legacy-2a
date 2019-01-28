@@ -450,7 +450,8 @@ crpc_functions.get_groups_by_id = async (connection, args) => {
 
     const self_uid = await connection.get_user();
 
-    const ids = args.ids.filter( () => true ); 		// make array dense: remove any elem which is unset
+    // make array dense: remove any elem which is unset
+    const ids = args.ids.filter( () => true );
 
     if (ids.length === 0) {
         return { "groups": [] };

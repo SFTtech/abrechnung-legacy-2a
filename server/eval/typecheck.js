@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 if (typeof module === "undefined") {
     // this file is shared between server and client.
@@ -47,7 +47,7 @@ module.exports.validate_object_structure = (object, types) => {
             throw new Error("superfluous object entry " + JSON.stringify(key) + ": " + JSON.stringify(object[key]));
         }
     }
-}
+};
 
 module.exports.empty_object = (object) => {
     // wtf @es6
@@ -62,19 +62,19 @@ module.exports.validate_uid = (uid) => {
     if (!module.exports.string_uid(uid)) {
         throw Error("bad user id");
     };
-}
+};
 
 module.exports.validate_username = (name) => {
     if (!module.exports.string_nz(name)) {
         throw Error("bad user name");
     };
-}
+};
 
 module.exports.validate_email = (email) => {
     if (!module.exports.string_email(email)) {
         throw Error("bad email");
     }
-}
+};
 
 /**
  * ignores entries which are unset, that is: have never been assigned a value or the entry was deleted

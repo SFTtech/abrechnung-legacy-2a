@@ -81,8 +81,16 @@ class DB {
     }
 
     async add_user(id, name, email, added_by) {
-        await this.query("insert into users (id, name, email, added_by) values ($1, $2, $3, $4);", [id, name, email, added_by]);
-
+        const insert_result = await this.query("insert into users (id, name, email, added_by) values ($1, $2, $3, $4) on conflict do nothing;", [id, name, email, added_by]);
+        if (insert_result.rowCount !== 1) {
+            // user already exists
+            // FIXME:
+            //   we should probably give some feedback
+            //   But do not treat it as an error as
+            //   * the more users exists the more conflicts on name will arise
+            //   * several users may try to invite the same person in parallel
+            return;
+        }
         let mail_text;
         if (added_by) {
             mail_text = `you have chosen, or been chosen (by ${added_by}), to join ${config.service.name}.`;

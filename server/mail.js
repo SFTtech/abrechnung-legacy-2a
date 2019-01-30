@@ -8,6 +8,7 @@ const email_config_to_nm_config = (ec) => {
     const result = {
         host: ec.host,
         port: ec.port,
+        address: ec.address,
         secure: (ec.port == 465),
         requireTLS: !! ec.requireTLS
     };

@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
-const promisify = require("util").promisify
+const promisify = require("util").promisify;
 const fs = require("fs");
 const crypto = require("crypto");
-const CV = require('await-notify').Subject;
+const CV = require("await-notify").Subject;
 
 /**
  * turns a result/error callback-accepting function into a
@@ -73,6 +73,7 @@ module.exports.WatchableValue = class {
     }
 
     async wait_condition(condition) {
+        /*eslint no-constant-condition: ["error", { "checkLoops": false }]*/
         while (true) {
             const value = this.get();
             if (condition(value)) { return value; }
@@ -95,4 +96,4 @@ module.exports.MonotonicNumber = class {
             this.value = value;
         }
     }
-}
+};

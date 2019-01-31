@@ -54,7 +54,7 @@ module.exports.is_string_safe = (string) => /^[a-zA-Z][a-zA-Z0-9_]*$/.test(strin
  * generates a random string with the given number of bytes
  */
 module.exports.random_string = (byte_count) => {
-    return crypto.randomBytes(32).toString("base64");
+    return crypto.randomBytes(byte_count).toString("base64");
 };
 
 module.exports.WatchableValue = class {

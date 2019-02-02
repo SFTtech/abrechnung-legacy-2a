@@ -1,12 +1,12 @@
-'use strict';
+"use strict";
 
-const https = require('https');
+const https = require("https");
 const fs = require("fs");
-const WebSocketServer = require('websocket').server;
+const WebSocketServer = require("websocket").server;
 
-const config = require('./config.js');
+const config = require("./config.js");
 const DB = require("./db.js");
-const passive_promise = require('./util.js').passive_promise;
+const passive_promise = require("./util.js").passive_promise;
 
 
 module.exports = (on_open, crpc_functions, on_close) => {
@@ -22,9 +22,10 @@ module.exports = (on_open, crpc_functions, on_close) => {
         var server = https.createServer(
             ssl_options,
             (req, res) => {
-            res.writeHead(200);
-            res.end('please connect to the websocket');
-        });
+                res.writeHead(200);
+                res.end("please connect to the websocket");
+            }
+        );
 
         server.listen(config.websocket.port);
     } catch (error) {
@@ -38,8 +39,8 @@ module.exports = (on_open, crpc_functions, on_close) => {
         autoAcceptConnections: false
     });
 
-    ws_server.on('request', async request => {
-        const connection = request.accept('abrechnung-ng', request.origin);
+    ws_server.on("request", async request => {
+        const connection = request.accept("abrechnung-ng", request.origin);
         connection.db = DB();
         connection.info = {};
         connection.pending_srpcs = {};
@@ -71,7 +72,7 @@ module.exports = (on_open, crpc_functions, on_close) => {
         connection.supd = async (func, args) => {
             // update only; don't expect a reply
             return await connection.srpc(func, args, false);
-        }
+        };
 
         // TODO DOS protection: count and limit the number of open connections for each IP.
 
@@ -79,9 +80,9 @@ module.exports = (on_open, crpc_functions, on_close) => {
         await connection.db.connect();
 
         await on_open(connection);
-        connection.on('message', async message => {
-            if (message.type !== 'utf8') {
-                connection.close(1002, 'Illegal message type: ' + JSON.stringify(message.type));
+        connection.on("message", async message => {
+            if (message.type !== "utf8") {
+                connection.close(1002, "Illegal message type: " + JSON.stringify(message.type));
                 return;
             }
             try {
@@ -96,7 +97,7 @@ module.exports = (on_open, crpc_functions, on_close) => {
                 delete connection.pending_srpcs[message.id];
 
                 // 'error' reply to a SRPC
-                if (typeof message.error !== 'string') {
+                if (typeof message.error !== "string") {
                     connection.close(1002, "Bad SRPC error message");
                 }
                 if (pending_srpc === undefined) {
@@ -111,11 +112,11 @@ module.exports = (on_open, crpc_functions, on_close) => {
                 const pending_srpc = connection.pending_srpcs[message.id];
                 delete connection.pending_srpcs[message.id];
 
-                if (typeof message.result !== 'object' || Array.isArray(message.result)) {
-                    connection.close(1002, 'Bad SRPC result message');
+                if (typeof message.result !== "object" || Array.isArray(message.result)) {
+                    connection.close(1002, "Bad SRPC result message");
                 }
                 if (pending_srpc === undefined) {
-                    connection.close(1002, 'Unknown SRPC message id');
+                    connection.close(1002, "Unknown SRPC message id");
                 }
                 pending_srpc.resolve(message.result);
                 return;
@@ -125,7 +126,7 @@ module.exports = (on_open, crpc_functions, on_close) => {
 
             if (message.type !== "crpc") {
                 // new CRPC call
-                connection.close(1002, 'Bad message type');
+                connection.close(1002, "Bad message type");
             }
 
             if (message.id === undefined) {
@@ -143,7 +144,7 @@ module.exports = (on_open, crpc_functions, on_close) => {
                 }
 
                 const result = await crpc_function(connection, message.args) || {};
-                if (typeof result !== 'object' || Array.isArray(message.result)) {
+                if (typeof result !== "object" || Array.isArray(message.result)) {
                     throw new Error("Bad function result: " + JSON.stringify(result));
                 }
 
@@ -161,7 +162,7 @@ module.exports = (on_open, crpc_functions, on_close) => {
             }
         });
 
-        connection.on('close', async (reasonCode, description) => {
+        connection.on("close", async (reasonCode, description) => {
             await on_close(connection, description);
             await connection.db.end();
         });

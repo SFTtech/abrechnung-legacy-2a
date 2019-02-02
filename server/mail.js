@@ -1,13 +1,14 @@
-'use strict';
+"use strict";
 
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
-const config = require('./config.js');
+const config = require("./config.js");
 
 const email_config_to_nm_config = (ec) => {
     const result = {
         host: ec.host,
         port: ec.port,
+        address: ec.address,
         secure: (ec.port == 465),
         requireTLS: !! ec.requireTLS
     };
@@ -41,7 +42,7 @@ Diese Mail wurde maschinell erstellt und ist daher ohne Unterschrift gültig.`
             if (error) {
                 console.log(error);
             } else {
-                console.log('E-Mail sent', info);
+                console.log("E-Mail sent", info);
             }
         }
     );

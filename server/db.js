@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 /**
  * Scope of this file:
@@ -11,16 +11,16 @@
  * Input validation.
  */
 
- // TODO: check rowCount for all UPDATE statement results
+// TODO: check rowCount for all UPDATE statement results
 
-const querystring = require('querystring');
+const querystring = require("querystring");
 
-const PGClient = require('pg').Client;
-const bcrypt = require('bcrypt');
+const PGClient = require("pg").Client;
+const bcrypt = require("bcrypt");
 
-const util = require('./util.js');
-const config = require('./config.js');
-const mail = require('./mail.js');
+const util = require("./util.js");
+const config = require("./config.js");
+const mail = require("./mail.js");
 
 class DB {
     constructor() {
@@ -45,7 +45,7 @@ class DB {
     }
 
     /* drops all existing tables and creates all tables as required */
-    async factory_reset(user, email, password) {
+    async factory_reset() {
         await this.query("drop owned by abrechnung cascade;");
         await this.query(await util.read_file(__dirname + "/database_setup.sql", "utf-8"));
     }
@@ -60,7 +60,7 @@ class DB {
                 console.log(exception);
                 // FIXME: ignore error for now
             }
-        }
+        };
 
         // listen doesn't support prepared statements.
         if (!util.is_string_safe(notification_topic)) {
@@ -81,8 +81,16 @@ class DB {
     }
 
     async add_user(id, name, email, added_by) {
-        await this.query("insert into users (id, name, email, added_by) values ($1, $2, $3, $4);", [id, name, email, added_by]);
-
+        const insert_result = await this.query("insert into users (id, name, email, added_by) values ($1, $2, $3, $4) on conflict do nothing;", [id, name, email, added_by]);
+        if (insert_result.rowCount !== 1) {
+            // user already exists
+            // FIXME:
+            //   we should probably give some feedback
+            //   But do not treat it as an error as
+            //   * the more users exists the more conflicts on name will arise
+            //   * several users may try to invite the same person in parallel
+            return;
+        }
         let mail_text;
         if (added_by) {
             mail_text = `you have chosen, or been chosen (by ${added_by}), to join ${config.service.name}.`;
@@ -222,7 +230,7 @@ Please set a login password: ${config.service.url}/set_password.html?uid=${query
             old_email: result.rows[0].email,
             new_email: result.rows[0].email_update_request,
             request_date: result.rows[0].email_update_request_timestamp
-        }
+        };
     }
 
     async confirm_update_email(uid, update_email_token) {
@@ -286,7 +294,7 @@ Please set a login password: ${config.service.url}/set_password.html?uid=${query
                 email,
                 "Email update aborted",
                 "congratulations! You have aborted your email update."
-            )
+            );
         }
     }
 };

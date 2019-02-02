@@ -310,45 +310,66 @@
 		</div>
 		<div id="main" class="hidden" class="main_element">
 			<div class="tabs">
-				<input id="balance-tab" type="radio" name="mainTabs"/>
-				<label for="balance-tab" class="tabL0">Balance</label>
+				<input id="groups-tab" type="radio" name="mainTabs"/>
+				<label for="groups-tab" class="tabL0">Groups</label>
 				<div>
-					<span id="current_balance"></span>
-				</div>
-
-				<input id="events-tab" type="radio" name="mainTabs"/>
-				<label for="events-tab" class="tabL1">Events</label>
-				<div>
-					<button id="event_create_button">Create new event</button>
-					<table>
-						<thead>
-							<tr>
-								<th>idx</th>
-								<th>effects</th>
-								<th>json</th>
-								<th>actions</th>
-							</tr>
-						</thead>
-						<tbody id="event_table"/>
-					</table>
-				</div>
-				<input id="groups-tab" type="radio" name="mainTabs" checked="true"/>
-				<label for="groups-tab" class="tabR1">Groups</label>
-				<div>
+					<button id="add_new_group_button" class="add_new_group_button">Add new group</button>
+					<form id="add_new_group_form" class="sub_element hidden">
+						<label>User ID<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
+						<label>Name<br/><input type="text" name="name" value="" autocomplete="off"><br></label>
+						<label>Email<br/><input type="text" name="email" value="" autocomplete="off"><br></label>
+						<label>Confirm email<br/><input type="text" name="email_confirm" value="" autocomplete="off"><br></label>
+						<button name="submit" type="submit" disabled="true">Add group</button>
+						<button id="add_new_group_form_abort_button" type="button">Abort</button>
+					</form>
 					<h3>My groups</h3>
 					<table>
 						<thead>
 							<tr>
 								<th>ID</th>
 								<th>Name</th>
+								<th>My Balance</th>
+								<th>Last change</th>
+								<th>My Role</th>
 								<th>Created</th>
 								<th>Created by</th>
-								<th>Last change</th>
-								<th>Members</th>
+								<th>Invited by</th>
+								<th>Joined</th>
 							</tr>
 						</thead>
 						<tbody id="groups_table"/>
 					</table>
+				</div>
+
+				<input id="selected-group-tab" type="radio" name="mainTabs"/>
+				<label for="selected-group-tab" class="tabL1">Selected Group</label>
+				<div>
+					<button id="invite_user_to_group_button" class="invite_user_to_group_button">Invite a user as member</button>
+					<form id="invite_user_to_group_form" class="sub_element hidden">
+						<label>User ID<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
+						<label>Role<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
+						<button name="submit" type="submit" disabled="true">Send Invitation</button>
+						<button id="invite_user_to_group_form_abort_button" type="button">Abort</button>
+					</form>
+					<h3>Group</h3>
+					<table>
+						<thead>
+							<tr>
+								<th>Member</th>
+								<th>Balance</th>
+								<th>Role</th>
+								<th>Added</th>
+								<th>Added by</th>
+								<th>Joined</th>
+								<th>Name</th>
+							</tr>
+						</thead>
+						<tbody id="event_table"/>
+					</table>
+				</div>
+				<input id="a-nice-tab" type="radio" name="mainTabs" checked="true"/>
+				<label for="a-nice-tab" class="tabR1">A nice tab</label>
+				<div>
 				</div>
 
 				<input id="users-tab" type="radio" name="mainTabs"/>

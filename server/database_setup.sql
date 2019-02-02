@@ -92,6 +92,7 @@ create table if not exists group_memberships (
 	added timestamp not null default current_timestamp,
 	added_by text not null references users (id),
 	role user_role not null,
+	acceped bool,
 	primary key (uid, gid),
 	last_mod_seq bigint not null
 );

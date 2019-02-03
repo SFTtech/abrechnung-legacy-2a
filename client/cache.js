@@ -94,5 +94,9 @@ const Cache = class {
     entries() {
         return this.map.entries();
     }
+
+    values() {
+        return this.map.values();
+    }
 };
 

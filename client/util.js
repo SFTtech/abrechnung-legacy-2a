@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 const passive_promise = () => {
     var resolve_, reject_;
@@ -30,4 +30,14 @@ const get_random_string = (byte_count) => {
     const array = new Uint8Array(8);
     crypto.getRandomValues(array);
     return btoa(array);
-}
+};
+
+const cmp_uid = (uid1, uid2) => {
+    if (uid1 < uid2) {
+        return -1;
+    }
+    if (uid1 > uid2) {
+        return 1;
+    }
+    return 0;
+};

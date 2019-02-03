@@ -432,6 +432,7 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
                 added,
                 added_by,
                 role,
+                accepted,
                 last_mod_seq,
                 max_last_mod_seq
             from memberships, max_last_mod_seq

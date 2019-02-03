@@ -92,6 +92,7 @@ create table if not exists group_memberships (
 	added timestamp not null default current_timestamp,
 	added_by text not null references users (id),
 	role user_role not null,
+	acceped bool,
 	primary key (uid, gid),
 	last_mod_seq bigint not null
 );
@@ -107,8 +108,20 @@ end; $$ language plpgsql;
 drop trigger if exists group_memberships_notify_trigger on group_memberships;
 create trigger group_memberships_notify_trigger after insert or update on group_memberships execute procedure group_memberships_notify_trigger();
 
-create or replace function group_memberships_update_seq_trigger() returns trigger as $$ declare begin
+create or replace function group_memberships_update_seq_trigger() returns trigger as $$
+declare
+	created_by text;
+begin
 	NEW.last_mod_seq := nextval('last_mod_seq_counter');
+	if NEW.uid = NEW.added_by then
+		-- only the founder of a group should be allowed to add himself
+		created_by := (select groups.created_by from groups where id = NEW.gid);
+		if created_by <> NEW.uid then
+			raise sqlstate '23514' using message = 'user invited himself but is not founder of the group';
+		end if;
+		NEW.accepted = true;
+		NEW.role = 'admin';
+	end if;
 	return NEW;
 end; $$ language plpgsql;
 

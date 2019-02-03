@@ -241,6 +241,7 @@ crpc_functions.listen_users = async (connection, args) => {
                     group_memberships as gm2
                 where
                     users.id = gm1.uid and
+                    gm1.accepted is true and
                     gm1.gid = gm2.gid and
                     gm2.uid = $1 and
                     users.last_mod_seq > $2
@@ -252,6 +253,7 @@ crpc_functions.listen_users = async (connection, args) => {
                 name,
                 added,
                 added_by,
+                last_mod_seq,
                 max_last_mod_seq
             from
                 users_of_groups_of_user, max_last_mod_seq
@@ -358,13 +360,14 @@ crpc_functions.listen_groups = async (connection, args) => {
         const groups_updates = (await connection.db.query(
             `
             with groups_of_user as (
-                select groups.*
+                select groups.*, added, added_by, role, accepted
                 from
                     groups,
-                    group_memberships
+                    group_memberships as gm
                 where
-                    groups.id = group_memberships.gid and
-                    group_memberships.uid = $1 and
+                    groups.id = gm.gid and
+                    (gm.accepted is true or gm.accepted is null) and
+                    gm.uid = $1 and
                     groups.last_mod_seq > $2
             ), max_last_mod_seq as (
                 select max(last_mod_seq) as max_last_mod_seq from groups_of_user
@@ -374,6 +377,11 @@ crpc_functions.listen_groups = async (connection, args) => {
                 name,
                 created,
                 created_by,
+                added,
+                added_by,
+                role,
+                accepted,
+                last_mod_seq,
                 max_last_mod_seq
             from
                 groups_of_user, max_last_mod_seq
@@ -409,11 +417,13 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
         const group_memberships_updates = (await connection.db.query(
             `
             with memberships as (
-                select * from group_memberships
+                select gm2.* from group_memberships as gm1, group_memberships as gm2
                 where
-                    uid = $1 and 
-                    last_mod_seq > $2
-            ), max_last_mod_seq as (
+                    gm1.uid = $1 and
+                    gm1.gid = gm2.gid and
+                    (gm2.last_mod_seq > $2 or gm1.last_mod_seq > $2)
+            ),
+             max_last_mod_seq as (
                 select max(last_mod_seq) as max_last_mod_seq from memberships
             )
             select
@@ -422,6 +432,8 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
                 added,
                 added_by,
                 role,
+                accepted,
+                last_mod_seq,
                 max_last_mod_seq
             from memberships, max_last_mod_seq
             order by
@@ -466,13 +478,14 @@ crpc_functions.get_groups_by_id = async (connection, args) => {
     const groups = (await connection.db.query(
         `
         with groups_of_user as (
-            select groups.*
+            select groups.*, added, added_by, role, accepted
             from
                 groups,
-                group_memberships
+                group_memberships as gm
             where
-                groups.id = group_memberships.gid and
-                group_memberships.uid = $1 and
+                groups.id = gm.gid and
+                (gm.accepted is true or gm.accepted is null) and
+                gm.uid = $1 and
                 groups.id in (${callparams})
         ), max_last_mod_seq as (
             select max(last_mod_seq) as max_last_mod_seq from groups_of_user
@@ -482,6 +495,11 @@ crpc_functions.get_groups_by_id = async (connection, args) => {
             name,
             created,
             created_by,
+            added,
+            added_by,
+            role,
+            accepted,
+            last_mod_seq,
             max_last_mod_seq
         from
             groups_of_user, max_last_mod_seq
@@ -524,6 +542,7 @@ crpc_functions.get_users_by_id = async (connection, args) => {
                 group_memberships as gm2
             where
                 users.id = gm1.uid and
+                gm1.accepted is true and
                 gm1.gid = gm2.gid and
                 gm2.uid = $1 and
                 users.id in (${callparams})
@@ -535,6 +554,7 @@ crpc_functions.get_users_by_id = async (connection, args) => {
             name,
             added,
             added_by,
+            last_mod_seq,
             max_last_mod_seq
         from
             users_of_groups_of_user, max_last_mod_seq

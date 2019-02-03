@@ -3,10 +3,10 @@ var store;
 
 // for this session only.
 var cache = {};
-cache.users = new Cache(["id"], ["id"]);
-cache.added_users = new Cache(["id"], ["id"]);
-cache.groups = new Cache(["id"], ["id"]);
-cache.group_memberships = new Cache(["uid", "gid"], ["uid", "gid"]);
+cache.users = new Cache(["id"], ["id", "last_mod_seq"], "last_mod_seq");
+cache.added_users = new Cache(["id"], ["id", "last_mod_seq"], "last_mod_seq" );
+cache.groups = new Cache(["id"], ["id", "last_mod_seq"], "last_mod_seq");
+cache.group_memberships = new Cache(["uid", "gid"], ["uid", "gid", "last_mod_seq"], "last_mod_seq");
 
 // the websocket client
 var client;
@@ -183,13 +183,13 @@ const connect = () => {
         const groups = args.groups;
         const max_last_mod_seq = groups[0].max_last_mod_seq;
 
-        const changes = cache.groups.insert_or_update(groups, max_last_mod_seq);
-        if (! changes) {
+        const changed_groups = cache.groups.insert_or_update(groups, max_last_mod_seq);
+        if (changed_groups.length === 0) {
             return;
         }
 
-        for (const group_update of groups) {
-            console.log("added group", group_update);
+        for (const group_update of changed_groups) {
+            console.log("added groups", group_update);
         }
     };
 
@@ -198,22 +198,23 @@ const connect = () => {
         const group_memberships = args.group_memberships;
         const max_last_mod_seq = group_memberships[0].max_last_mod_seq;
 
-        const changes = cache.group_memberships.insert_or_update(group_memberships, max_last_mod_seq);
-        if (! changes) {
+        const changed_group_memberships = cache.group_memberships.insert_or_update(group_memberships, max_last_mod_seq);
+        if (changed_group_memberships.length === 0) {
             return;
         }
 
-        const missing_gids = group_memberships.map(
+        const missing_gids = new Set(group_memberships.map(
             (elem) => (elem.gid)
         ).filter(
             (elem) => (! cache.groups.has([elem.gid]))
-        );
-        const missing_uids = group_memberships.map(
+        ));
+        const missing_uids = new Set(group_memberships.map(
             (elem) => (elem.uid)
         ).filter(
             (elem) => (! cache.users.has([elem.gid]))
-        );
+        ));
 
+        let changed_groups = [];
         if (missing_gids.length > 0) {
             const missing_groups = (await client.crpc("get_groups_by_id", {
                 "ids": missing_gids,
@@ -221,11 +222,12 @@ const connect = () => {
             })).groups;
 
             if (missing_groups.length > 0) {
-                cache.groups.insert_or_update(missing_groups, missing_groups[0].max_last_mod_seq);
+                changed_groups = cache.groups.insert_or_update(missing_groups, missing_groups[0].max_last_mod_seq);
             }
             // FIXME: check if we did not get all groups
         }
 
+        let changed_users = [];
         if (missing_uids.length > 0) {
             const missing_users = (await client.crpc("get_users_by_id", {
                 "ids": missing_uids,
@@ -233,24 +235,41 @@ const connect = () => {
             })).users;
 
             if (missing_users.length > 0) {
-                cache.users.insert_or_update(missing_users, missing_users[0].max_last_mod_seq);
+                changed_users = cache.users.insert_or_update(missing_users, missing_users[0].max_last_mod_seq);
             }
-            // FIXME: check if we did not get all users
+            // we may not get all missing users, because wie don't get users invited to a group
+            // who do not have accepted the invitation
         }
 
-        for (const membership of group_memberships) {
+        for (const membership of group_memberships.sort( (elem1, elem2) => (elem1.gid - elem2.gid) )) {
             let gid = membership.gid;
             let uid = membership.uid;
             console.log("added group_membership", membership);
             if (! cache.groups.has([gid])) {
-                console.log("group is missing", gid);
+                console.log("group is missing:", gid);
             } else {
                 console.log("group =", cache.groups.get([gid]));
             }
             if (! cache.users.has([uid])) {
-                console.log("user is missing", uid);
+                console.log("user is missing:", uid);
             } else {
                 console.log("group =", cache.users.get([uid]));
+            }
+            if (uid === store.last_uid) {
+                const group = cache.groups.get([gid]);
+                console.log("calling table.update_group for:", gid);
+                page.table_update_group(
+                    membership.gid,
+                    group.name,
+                    0, // FDIXME: my_balance: noe yet available
+                    "1970-01-01", // FIXME: last_change of abrechnung not yet available
+                    membership.role,
+                    group.created,
+                    group.created_by,
+                    membership.added,
+                    membership.added_by,
+                    membership.accepted
+                );
             }
         }
     };

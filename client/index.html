@@ -120,6 +120,87 @@
 				request_span.classList.add("hidden");
 			}
 		};
+		page.selected_group = -1;
+		page.set_selected_group = (gid) => {
+			const group = cache.groups.get([gid]);
+			if (! group) {
+				return;
+			}
+			const name = group.name;
+			const selected_group_label = document.getElementById("selected-group-tab-label");
+			selected_group_label.textContent = `${name} (${gid})`;
+
+			const memberships = cache.group_memberships;
+			const users = cache.users;
+
+			const members = (Array.from(memberships.values()))
+				.filter( (elem) => (elem.gid === gid) )
+				.sort( (e1, e2) => cmp_uid(e1.uid, e2.uid) );
+			members.sort(
+				(e1, e2) => {
+					if (users.has([e1.uid])) {
+						if (users.has([e2.uid])) {
+							return cmp_uid(e1.uid, e2.uid);
+						}
+						return -1;
+					}
+					if (users.has([e2.uid])) {
+						return 1;
+					}
+					return cmp_uid(e1.uid, e2.uid);
+				}
+			);
+
+			let table_body = document.getElementById("selected_group_table");
+			if (page.selected_group !== gid) {
+				let child;
+				while (child = table_body.lastChild) {
+					table_body.removeChild(child);
+				}
+			}
+			for (const member of members.values()) {
+				const uid = member.uid;
+				const user = users.get([uid]);
+				let name = "";
+				let added = "";
+				let added_by = "";
+				if (user) {
+					name = user.name;
+					added = user.added;
+					added_by = user.added_by;
+				}
+
+				const table_row_id = "selected_group_table_row " + uid;
+				let row = document.getElementById(table_row_id);
+				if (row === null) {
+					// table row does not yet exist
+					row = document.createElement("tr");
+					row.id = table_row_id;
+
+					for (let i = 0; i < 9; i++) {
+						row.appendChild(document.createElement("td"));
+					}
+
+					table_body.append(row);
+				}
+
+				let joined = member.accepted;
+				if (typeof joined === 'object') {
+					joined = "pending";
+				}
+
+				row.children[0].textContent = uid;
+				row.children[1].textContent = name;
+				row.children[2].textContent = 0; // FIXME: balance
+				row.children[3].textContent = member.role;
+				row.children[4].textContent = added;
+				row.children[5].textContent = added_by;
+				row.children[6].textContent = member.added;
+				row.children[7].textContent = member.added_by;
+				row.children[8].textContent = joined;
+			}
+
+		};
 		page.table_update_group = (gid, name, my_balance, last_change, my_role, created, created_by, invited, invited_by, joined) => {
 			const table_row_id = "my_groups_table_row " + gid;
 			let row = document.getElementById(table_row_id);
@@ -132,7 +213,6 @@
 					row.appendChild(document.createElement("td"));
 				}
 
-
 				let button = document.createElement("input");
 				let button_id = "my_groups_table_row_select_button_element " + gid;
 				button.setAttribute("type", "radio");
@@ -141,6 +221,7 @@
 				button.setAttribute("value", gid);
 				button.addEventListener("click", () => {
 					console.log("selected group: ", gid);
+					page.set_selected_group(gid);
 				});
 				let label = document.createElement("label");
 				label.appendChild(document.createTextNode(gid));
@@ -151,7 +232,7 @@
 				document.getElementById("my_groups_table").append(row);
 			}
 
-			if (typeof joined === 'undefined') {
+			if (typeof joined === 'object') {
 				joined = "pending";
 			}
 
@@ -378,6 +459,7 @@
 								<th>My Role</th>
 								<th>Created</th>
 								<th>Created by</th>
+								<th>Invited</th>
 								<th>Invited by</th>
 								<th>Joined</th>
 							</tr>
@@ -401,15 +483,17 @@
 						<thead>
 							<tr>
 								<th>Member</th>
+								<th>Name</th>
 								<th>Balance</th>
 								<th>Role</th>
 								<th>Added</th>
 								<th>Added by</th>
+								<th>Invited</th>
+								<th>Invited by</th>
 								<th>Joined</th>
-								<th>Name</th>
 							</tr>
 						</thead>
-						<tbody id="event_table"/>
+						<tbody id="selected_group_table"/>
 					</table>
 				</div>
 				<input id="a-nice-tab" type="radio" name="mainTabs" checked="true"/>

@@ -417,11 +417,13 @@ crpc_functions.listen_group_memberships = async (connection, args) => {
         const group_memberships_updates = (await connection.db.query(
             `
             with memberships as (
-                select * from group_memberships
+                select gm2.* from group_memberships as gm1, group_memberships as gm2
                 where
-                    uid = $1 and 
-                    last_mod_seq > $2
-            ), max_last_mod_seq as (
+                    gm1.uid = $1 and
+                    gm1.gid = gm2.gid and
+                    (gm2.last_mod_seq > $2 or gm1.last_mod_seq > $2)
+            ),
+             max_last_mod_seq as (
                 select max(last_mod_seq) as max_last_mod_seq from memberships
             )
             select

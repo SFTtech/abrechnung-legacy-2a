@@ -203,16 +203,16 @@ const connect = () => {
             return;
         }
 
-        const missing_gids = group_memberships.map(
+        const missing_gids = new Set(group_memberships.map(
             (elem) => (elem.gid)
         ).filter(
             (elem) => (! cache.groups.has([elem.gid]))
-        );
-        const missing_uids = group_memberships.map(
+        ));
+        const missing_uids = new Set(group_memberships.map(
             (elem) => (elem.uid)
         ).filter(
             (elem) => (! cache.users.has([elem.gid]))
-        );
+        ));
 
         let changed_groups = [];
         if (missing_gids.length > 0) {
@@ -241,7 +241,7 @@ const connect = () => {
             // who do not have accepted the invitation
         }
 
-        for (const membership of group_memberships) {
+        for (const membership of group_memberships.sort( (elem1, elem2) => (elem1.gid - elem2.gid) )) {
             let gid = membership.gid;
             let uid = membership.uid;
             console.log("added group_membership", membership);
@@ -254,6 +254,22 @@ const connect = () => {
                 console.log("user is missing:", uid);
             } else {
                 console.log("group =", cache.users.get([uid]));
+            }
+            if (uid === store.last_uid) {
+                const group = cache.groups.get([gid]);
+                console.log("calling table.update_group for:", gid);
+                page.table_update_group(
+                    membership.gid,
+                    group.name,
+                    0, // FDIXME: my_balance: noe yet available
+                    "1970-01-01", // FIXME: last_change of abrechnung not yet available
+                    membership.role,
+                    group.created,
+                    group.created_by,
+                    membership.added,
+                    membership.added_by,
+                    membership.accepted
+                );
             }
         }
     };

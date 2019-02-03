@@ -120,6 +120,51 @@
 				request_span.classList.add("hidden");
 			}
 		};
+		page.table_update_group = (gid, name, my_balance, last_change, my_role, created, created_by, invited, invited_by, joined) => {
+			const table_row_id = "my_groups_table_row " + gid;
+			let row = document.getElementById(table_row_id);
+			if (row === null) {
+				// table row does not yet exist
+				row = document.createElement("tr");
+				row.id = table_row_id;
+
+				for (let i = 0; i < 10; i++) {
+					row.appendChild(document.createElement("td"));
+				}
+
+
+				let button = document.createElement("input");
+				let button_id = "my_groups_table_row_select_button_element " + gid;
+				button.setAttribute("type", "radio");
+				button.setAttribute("id", button_id);
+				button.setAttribute("name", "my_groups_table_row_select_button");
+				button.setAttribute("value", gid);
+				button.addEventListener("click", () => {
+					console.log("selected group: ", gid);
+				});
+				let label = document.createElement("label");
+				label.appendChild(document.createTextNode(gid));
+				label.setAttribute("for", button_id);
+				row.children[0].appendChild(button);
+				row.children[0].appendChild(label);
+				
+				document.getElementById("my_groups_table").append(row);
+			}
+
+			if (typeof joined === 'undefined') {
+				joined = "pending";
+			}
+
+			row.children[1].textContent = name;
+			row.children[2].textContent = my_balance;
+			row.children[3].textContent = last_change;
+			row.children[4].textContent = my_role;
+			row.children[5].textContent = created;
+			row.children[6].textContent = created_by;
+			row.children[7].textContent = invited;
+			row.children[8].textContent = invited_by;
+			row.children[9].textContent = joined;
+		};
 
 		/*
 		page.open_group_editor = () => {
@@ -337,12 +382,12 @@
 								<th>Joined</th>
 							</tr>
 						</thead>
-						<tbody id="groups_table"/>
+						<tbody id="my_groups_table"/>
 					</table>
 				</div>
 
 				<input id="selected-group-tab" type="radio" name="mainTabs"/>
-				<label for="selected-group-tab" class="tabL1">Selected Group</label>
+				<label id="selected-group-tab-label" for="selected-group-tab" class="tabL1">Selected Group</label>
 				<div>
 					<button id="invite_user_to_group_button" class="invite_user_to_group_button">Invite a user as member</button>
 					<form id="invite_user_to_group_form" class="sub_element hidden">

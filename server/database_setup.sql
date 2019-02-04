@@ -8,6 +8,12 @@ exception
 when duplicate_object then null;
 end $$;
 
+do $$ begin
+create type membership_acceptance as enum ('pending', 'accepted', 'rejected');
+exception
+when duplicate_object then null;
+end $$;
+
 -- used for the  all database tables 
 create sequence if not exists last_mod_seq_counter;
 
@@ -92,7 +98,7 @@ create table if not exists group_memberships (
 	added timestamp not null default current_timestamp,
 	added_by text not null references users (id),
 	role user_role not null,
-	acceped bool,
+	acceped membership_acceptance not null default 'pending',
 	primary key (uid, gid),
 	last_mod_seq bigint not null
 );
@@ -119,7 +125,7 @@ begin
 		if created_by <> NEW.uid then
 			raise sqlstate '23514' using message = 'user invited himself but is not founder of the group';
 		end if;
-		NEW.accepted = true;
+		NEW.accepted = 'accepted';
 		NEW.role = 'admin';
 	end if;
 	return NEW;

@@ -134,17 +134,17 @@
 			const users = cache.users;
 
 			const members = (Array.from(memberships.values()))
-				.filter( (elem) => (elem.gid === gid) )
-				.sort( (e1, e2) => cmp_uid(e1.uid, e2.uid) );
+				.filter( (elem) => (elem.gid === gid) );
+			// sort: accepted first, sorted by uid; then others, sorted again by uid 
 			members.sort(
 				(e1, e2) => {
-					if (users.has([e1.uid])) {
-						if (users.has([e2.uid])) {
+					if (users.has([e1.uid]) && e1.accepted === 'accepted') {
+						if (users.has([e2.uid]) && e2.accepted === 'accepted') {
 							return cmp_uid(e1.uid, e2.uid);
 						}
 						return -1;
 					}
-					if (users.has([e2.uid])) {
+					if (users.has([e2.uid]) && e2.accepted === 'accepted') {
 						return 1;
 					}
 					return cmp_uid(e1.uid, e2.uid);
@@ -184,11 +184,6 @@
 					table_body.append(row);
 				}
 
-				let joined = member.accepted;
-				if (typeof joined === 'object') {
-					joined = "pending";
-				}
-
 				row.children[0].textContent = uid;
 				row.children[1].textContent = name;
 				row.children[2].textContent = 0; // FIXME: balance
@@ -197,7 +192,7 @@
 				row.children[5].textContent = added_by;
 				row.children[6].textContent = member.added;
 				row.children[7].textContent = member.added_by;
-				row.children[8].textContent = joined;
+				row.children[8].textContent = member.accepted;
 			}
 
 		};

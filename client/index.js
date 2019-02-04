@@ -175,6 +175,8 @@ const connect = () => {
         if (users_of_groups_of_user.length > 0) {
             const max_last_mod_seq = users_of_groups_of_user[0].max_last_mod_seq;
             cache.users.insert_or_update(users_of_groups_of_user, max_last_mod_seq);
+            // update the selected group tab: there may be user infos
+            page.set_selected_group(page.selected_group);
         }
     };
 
@@ -191,6 +193,7 @@ const connect = () => {
         for (const group_update of changed_groups) {
             console.log("added groups", group_update);
         }
+        page.set_selected_group(page.selected_group);
     };
 
     client.srpcs.group_memberships_update = async (args) => {
@@ -258,20 +261,10 @@ const connect = () => {
             if (uid === store.last_uid) {
                 const group = cache.groups.get([gid]);
                 console.log("calling table.update_group for:", gid);
-                page.table_update_group(
-                    membership.gid,
-                    group.name,
-                    0, // FDIXME: my_balance: noe yet available
-                    "1970-01-01", // FIXME: last_change of abrechnung not yet available
-                    membership.role,
-                    group.created,
-                    group.created_by,
-                    membership.added,
-                    membership.added_by,
-                    membership.accepted
-                );
+                page.table_update_group(uid, gid);
             }
         }
+        page.set_selected_group(page.selected_group);
     };
 
 };

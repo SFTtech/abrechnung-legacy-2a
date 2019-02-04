@@ -134,17 +134,17 @@
 			const users = cache.users;
 
 			const members = (Array.from(memberships.values()))
-				.filter( (elem) => (elem.gid === gid) )
-				.sort( (e1, e2) => cmp_uid(e1.uid, e2.uid) );
+				.filter( (elem) => (elem.gid === gid) );
+			// sort: accepted first, sorted by uid; then others, sorted again by uid 
 			members.sort(
 				(e1, e2) => {
-					if (users.has([e1.uid])) {
-						if (users.has([e2.uid])) {
+					if (users.has([e1.uid]) && e1.accepted === 'accepted') {
+						if (users.has([e2.uid]) && e2.accepted === 'accepted') {
 							return cmp_uid(e1.uid, e2.uid);
 						}
 						return -1;
 					}
-					if (users.has([e2.uid])) {
+					if (users.has([e2.uid]) && e2.accepted === 'accepted') {
 						return 1;
 					}
 					return cmp_uid(e1.uid, e2.uid);
@@ -157,6 +157,7 @@
 				while (child = table_body.lastChild) {
 					table_body.removeChild(child);
 				}
+				page.selected_group = gid;
 			}
 			for (const member of members.values()) {
 				const uid = member.uid;
@@ -184,11 +185,6 @@
 					table_body.append(row);
 				}
 
-				let joined = member.accepted;
-				if (typeof joined === 'object') {
-					joined = "pending";
-				}
-
 				row.children[0].textContent = uid;
 				row.children[1].textContent = name;
 				row.children[2].textContent = 0; // FIXME: balance
@@ -197,11 +193,16 @@
 				row.children[5].textContent = added_by;
 				row.children[6].textContent = member.added;
 				row.children[7].textContent = member.added_by;
-				row.children[8].textContent = joined;
+				row.children[8].textContent = member.accepted;
 			}
 
 		};
-		page.table_update_group = (gid, name, my_balance, last_change, my_role, created, created_by, invited, invited_by, joined) => {
+		page.table_update_group = (uid, gid) => {
+			const group = cache.groups.get([gid]);
+			const membership = cache.group_memberships.get([uid, gid]);
+			if (! group || ! membership) {
+				return;
+			}
 			const table_row_id = "my_groups_table_row " + gid;
 			let row = document.getElementById(table_row_id);
 			if (row === null) {
@@ -236,15 +237,15 @@
 				joined = "pending";
 			}
 
-			row.children[1].textContent = name;
-			row.children[2].textContent = my_balance;
-			row.children[3].textContent = last_change;
-			row.children[4].textContent = my_role;
-			row.children[5].textContent = created;
-			row.children[6].textContent = created_by;
-			row.children[7].textContent = invited;
-			row.children[8].textContent = invited_by;
-			row.children[9].textContent = joined;
+			row.children[1].textContent = group.name;
+			row.children[2].textContent = 0; // membership.my_balance
+			row.children[3].textContent = "1970-01-01"; // group.last_change
+			row.children[4].textContent = membership.my_role;
+			row.children[5].textContent = group.created;
+			row.children[6].textContent = group.created_by;
+			row.children[7].textContent = membership.invited;
+			row.children[8].textContent = membership.invited_by;
+			row.children[9].textContent = membership.accepted;
 		};
 
 		/*

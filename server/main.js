@@ -241,7 +241,7 @@ crpc_functions.listen_users = async (connection, args) => {
                     group_memberships as gm2
                 where
                     users.id = gm1.uid and
-                    gm1.accepted is true and
+                    gm1.accepted = 'accepted' and
                     gm1.gid = gm2.gid and
                     gm2.uid = $1 and
                     users.last_mod_seq > $2
@@ -366,7 +366,7 @@ crpc_functions.listen_groups = async (connection, args) => {
                     group_memberships as gm
                 where
                     groups.id = gm.gid and
-                    (gm.accepted is true or gm.accepted is null) and
+                    (gm.accepted = 'accepted' or gm.accepted = 'pending') and
                     gm.uid = $1 and
                     groups.last_mod_seq > $2
             ), max_last_mod_seq as (
@@ -484,7 +484,7 @@ crpc_functions.get_groups_by_id = async (connection, args) => {
                 group_memberships as gm
             where
                 groups.id = gm.gid and
-                (gm.accepted is true or gm.accepted is null) and
+                (gm.accepted = 'accepted' or gm.accepted = 'pending') and
                 gm.uid = $1 and
                 groups.id in (${callparams})
         ), max_last_mod_seq as (
@@ -542,7 +542,7 @@ crpc_functions.get_users_by_id = async (connection, args) => {
                 group_memberships as gm2
             where
                 users.id = gm1.uid and
-                gm1.accepted is true and
+                gm1.accepted = 'accepted' and
                 gm1.gid = gm2.gid and
                 gm2.uid = $1 and
                 users.id in (${callparams})

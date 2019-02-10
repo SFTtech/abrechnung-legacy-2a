@@ -22,6 +22,7 @@ module.exports.string_re = (re) => (object) => (((typeof object) === "string") &
 module.exports.string_email = module.exports.string_re(/^[a-zA-Z0-9.+,-]+@[a-zA-Z0-9.-]+$/);
 module.exports.string_uid = module.exports.string_re(/^[a-zA-Z]([-]*[a-zA-Z0-9_])*$/);
 module.exports.string_group_name = module.exports.string_re(/^[a-zA-Z]([-]*[a-zA-Z0-9_])*$/);
+module.exports.string_user_role = module.exports.string_re(/^[a-zA-Z0-9_]+$/);
 module.exports.choice = (set) => (object) => set.has(object);
 module.exports.optional = (inner_type) => (object) => ((object === undefined) || inner_type(object));
 module.exports.multicheck = (checks) => (object) => (checks.every( (check) => (check(object)) ));

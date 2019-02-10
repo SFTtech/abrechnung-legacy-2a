@@ -129,6 +129,18 @@ const add_new_group = async (name) => {
     });
 };
 
+const invite_user_to_group = async (uid, gid, role) => {
+    if (uid === "") { throw Error("uid cannot be empty"); }
+    if (role === "") { throw Error("role cannot be empty"); }
+    if (! Number.isInteger(gid) || gid < 0) { throw Error("selected group is bogus"); }
+
+    await client.crpc("invite_user_to_group", {
+        uid: uid,
+        gid: gid,
+        role: role
+    });
+};
+
 const connect = () => {
     page.status("Connecting...");
 

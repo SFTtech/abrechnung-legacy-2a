@@ -271,6 +271,7 @@
 				login_password(e.target.elements.user.value, e.target.elements.password.value, e.target.elements.remember.checked);
 			});
 			document.getElementById("logout_button").addEventListener("click", () => { logout(); });
+
 			document.getElementById("my_account_email_update_abort").addEventListener("click", () => { abort_update_email(); });
 			document.getElementById("add_new_user_button").addEventListener("click", (e) => {
 				e.target.classList.add("hidden");
@@ -333,6 +334,40 @@
 					page.status("could not update account email: " + error, "error");
 				}
 			});
+
+			document.getElementById("add_new_group_button").addEventListener("click", (e) => {
+				e.target.classList.add("hidden");
+				document.getElementById("add_new_group_form").classList.remove("hidden");
+			});
+			const add_new_group_form = document.getElementById("add_new_group_form");
+			const add_new_group_form_on_input = () => {
+				let disable_submit = false;
+				if (add_new_group_form.elements.name.value === "") { disable_submit = true; }
+				add_new_group_form.elements.submit.disabled = disable_submit;
+			};
+			const add_new_group_form_hide = () => {
+				const add_new_group_form = document.getElementById("add_new_group_form");
+				add_new_group_form.elements.name.value = "";
+				add_new_group_form.elements.submit.disabled = true;
+				document.getElementById("add_new_group_form").classList.add("hidden");
+				document.getElementById("add_new_group_button").classList.remove("hidden");
+			};
+			document.getElementById("add_new_group_form_abort_button").addEventListener("click", add_new_group_form_hide);
+			add_new_group_form.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				try {
+					await add_new_group(
+						add_new_group_form.elements.name.value,
+					);
+				} catch (error) {
+					// TODO: if the error can be analyzed more directly, display it in the form
+					page.status("could not add new group: " + error, "error");
+					return;
+				}
+				add_new_group_form_hide();
+			});
+
+			add_new_group_form.elements.name.addEventListener("input", add_new_group_form_on_input);
 
 			query = parse_query_string();
 
@@ -442,10 +477,7 @@
 				<div>
 					<button id="add_new_group_button" class="add_new_group_button">Add new group</button>
 					<form id="add_new_group_form" class="sub_element hidden">
-						<label>User ID<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
 						<label>Name<br/><input type="text" name="name" value="" autocomplete="off"><br></label>
-						<label>Email<br/><input type="text" name="email" value="" autocomplete="off"><br></label>
-						<label>Confirm email<br/><input type="text" name="email_confirm" value="" autocomplete="off"><br></label>
 						<button name="submit" type="submit" disabled="true">Add group</button>
 						<button id="add_new_group_form_abort_button" type="button">Abort</button>
 					</form>

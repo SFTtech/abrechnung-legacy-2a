@@ -121,6 +121,14 @@ const on_logged_in = async () => {
     await client.crpc("listen_group_memberships", {});
 };
 
+const add_new_group = async (name) => {
+    if (name === "") { throw Error("name cannot be empty"); }
+
+    await client.crpc("add_new_group", {
+        name: name,
+    });
+};
+
 const connect = () => {
     page.status("Connecting...");
 

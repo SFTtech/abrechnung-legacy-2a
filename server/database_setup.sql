@@ -166,3 +166,12 @@ end; $$ language plpgsql;
 
 drop trigger if exists patches_seq_trigger on patches;
 create trigger patches_seq_trigger after insert or update on patches for each row execute procedure patches_seq_trigger();
+
+create or replace function add_group(name text, created_by text) returns groups as $$
+declare
+	inserted_group groups%ROWTYPE;
+begin
+	insert into groups (name, created_by) values (name, created_by) returning * into inserted_group;
+	insert into group_memberships (uid, gid, added_by, role, accepted) values (created_by, inserted_group.id, created_by, 'admin', 'accepted');
+	return inserted_group;
+end; $$ language plpgsql;

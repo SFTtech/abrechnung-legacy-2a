@@ -307,6 +307,17 @@ Please set a login password: ${config.service.url}/set_password.html?uid=${query
         const inserted_membership = await this.query("select add_user_to_group($1, $2, $3, $4, $5);", [uid, gid, added_by, role, accepted]);
         return inserted_membership;
     }
+
+    async get_enum_user_role() {
+        return (await this.query("SELECT unnest(enum_range(NULL::user_role)) as value;")
+        ).rows.map( (elem) => (elem.value) );
+    }
+
+    async get_enum_membership_acceptance() {
+        return (await this.query("SELECT unnest(enum_range(NULL::membership_acceptance)) as value;")
+        ).rows.map( (elem) => (elem.value) );
+    }
+
 };
 
 module.exports = () => new DB();

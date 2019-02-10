@@ -595,6 +595,20 @@ crpc_functions.invite_user_to_group = async (connection, args) => {
     return { "added_membership": inserted_membership };
 };
 
+crpc_functions.get_enum_user_role = async (connection, args) => {
+    typecheck.validate_object_structure(args, {});
+
+    return await connection.db.get_enum_user_role();
+};
+
+crpc_functions.get_enum_membership_acceptance = async (connection, args) => {
+    typecheck.validate_object_structure(args, {});
+
+    return await connection.db.get_enum_membership_acceptance();
+};
+
+
+
 const main = async() => {
     await websocket_server(on_open, crpc_functions, on_close);
 };

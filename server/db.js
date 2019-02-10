@@ -297,6 +297,11 @@ Please set a login password: ${config.service.url}/set_password.html?uid=${query
             );
         }
     }
+
+    async add_group(name, created_by) {
+        const inserted_group = await this.query("select add_group($1, $2);", [name, created_by]);
+        return inserted_group;
+    }
 };
 
 module.exports = () => new DB();

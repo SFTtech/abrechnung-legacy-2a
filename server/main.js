@@ -568,6 +568,19 @@ crpc_functions.get_users_by_id = async (connection, args) => {
     return { "users": users };
 };
 
+const ARGS_ADD_NEW_GROUP = {};
+ARGS_ADD_NEW_GROUP.name = typecheck.string_group_name;
+
+crpc_functions.add_new_group = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_ADD_NEW_GROUP);
+
+    const self_uid = await connection.get_user();
+    const name = args.name;
+
+    const inserted_group = await connection.db.add_group(name, self_uid);
+    return { "added_group": inserted_group };
+};
+
 const main = async() => {
     await websocket_server(on_open, crpc_functions, on_close);
 };

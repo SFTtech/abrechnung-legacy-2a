@@ -7,6 +7,7 @@ cache.users = new Cache(["id"], ["id", "last_mod_seq"], "last_mod_seq");
 cache.added_users = new Cache(["id"], ["id", "last_mod_seq"], "last_mod_seq" );
 cache.groups = new Cache(["id"], ["id", "last_mod_seq"], "last_mod_seq");
 cache.group_memberships = new Cache(["uid", "gid"], ["uid", "gid", "last_mod_seq"], "last_mod_seq");
+cache.enums = {};
 
 // the websocket client
 var client;
@@ -134,12 +135,22 @@ const invite_user_to_group = async (uid, gid, role) => {
     if (role === "") { throw Error("role cannot be empty"); }
     if (! Number.isInteger(gid) || gid < 0) { throw Error("selected group is bogus"); }
 
+    roles = await get_enum_user_role();
+    if (! roles.has(role)) { throw Error("role is not a valid user_role"); }
+
     await client.crpc("invite_user_to_group", {
         uid: uid,
         gid: gid,
         role: role
     });
 };
+
+const get_enum_user_role = async () => {
+    if (typeof cache.enums.user_role !== "object") {
+        cache.enums.user_role = new Set(await client.crpc("get_enum_user_role", {}));
+    }
+    return cache.enums.user_role;
+}
 
 const connect = () => {
     page.status("Connecting...");
@@ -279,8 +290,7 @@ const connect = () => {
                 console.log("group =", cache.users.get([uid]));
             }
             if (uid === store.last_uid) {
-                const group = cache.groups.get([gid]);
-                console.log("calling table.update_group for:", gid);
+                console.log("calling table.update_group for:", gid, "uid is:", uid);
                 page.table_update_group(uid, gid);
             }
         }

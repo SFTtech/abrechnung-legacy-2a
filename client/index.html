@@ -369,6 +369,46 @@
 
 			add_new_group_form.elements.name.addEventListener("input", add_new_group_form_on_input);
 
+			document.getElementById("invite_user_to_group_button").addEventListener("click", (e) => {
+				if (page.selected_group === -1) {
+					return;
+				}
+				e.target.classList.add("hidden");
+				document.getElementById("invite_user_to_group_form").classList.remove("hidden");
+			});
+			const invite_user_to_group_form = document.getElementById("invite_user_to_group_form");
+			const invite_user_to_group_form_on_input = () => {
+				let disable_submit = false;
+				if (invite_user_to_group_form.elements.uid.value === "") { disable_submit = true; }
+				invite_user_to_group_form.elements.submit.disabled = disable_submit;
+			};
+			const invite_user_to_group_form_hide = () => {
+				const invite_user_to_group_form = document.getElementById("invite_user_to_group_form");
+				invite_user_to_group_form.elements.uid.value = "";
+				invite_user_to_group_form.elements.submit.disabled = true;
+				document.getElementById("invite_user_to_group_form").classList.add("hidden");
+				document.getElementById("invite_user_to_group_button").classList.remove("hidden");
+			};
+			document.getElementById("invite_user_to_group_form_abort_button").addEventListener("click", invite_user_to_group_form_hide);
+			invite_user_to_group_form.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				try {
+					await invite_user_to_group(
+						invite_user_to_group_form.elements.uid.value,
+						page.selected_group,
+						invite_user_to_group_form.elements.role.value
+					);
+				} catch (error) {
+					// TODO: if the error can be analyzed more directly, display it in the form
+					page.status("could not add new group: " + error, "error");
+					return;
+				}
+				invite_user_to_group_form_hide();
+			});
+
+			invite_user_to_group_form.elements.uid.addEventListener("input", invite_user_to_group_form_on_input);
+			invite_user_to_group_form.elements.role.addEventListener("input", invite_user_to_group_form_on_input);
+
 			query = parse_query_string();
 
 			page.status("Initializing...")
@@ -507,7 +547,7 @@
 					<button id="invite_user_to_group_button" class="invite_user_to_group_button">Invite a user as member</button>
 					<form id="invite_user_to_group_form" class="sub_element hidden">
 						<label>User ID<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
-						<label>Role<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
+						<label>Role<br/><input type="text" name="role" value="" autocomplete="off"><br></label>
 						<button name="submit" type="submit" disabled="true">Send Invitation</button>
 						<button id="invite_user_to_group_form_abort_button" type="button">Abort</button>
 					</form>

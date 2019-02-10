@@ -581,6 +581,20 @@ crpc_functions.add_new_group = async (connection, args) => {
     return { "added_group": inserted_group };
 };
 
+const ARGS_INVITE_USER_TO_GROUP = {};
+ARGS_INVITE_USER_TO_GROUP.uid = typecheck.string_uid;
+ARGS_INVITE_USER_TO_GROUP.gid = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);
+ARGS_INVITE_USER_TO_GROUP.role = typecheck.string_user_role;
+
+crpc_functions.invite_user_to_group = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_INVITE_USER_TO_GROUP);
+
+    const self_uid = await connection.get_user();
+
+    const inserted_membership = await connection.db.add_user_to_group(args.uid, args.gid, self_uid, args.role);
+    return { "added_membership": inserted_membership };
+};
+
 const main = async() => {
     await websocket_server(on_open, crpc_functions, on_close);
 };

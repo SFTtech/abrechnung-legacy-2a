@@ -175,3 +175,26 @@ begin
 	insert into group_memberships (uid, gid, added_by, role, accepted) values (created_by, inserted_group.id, created_by, 'admin', 'accepted');
 	return inserted_group;
 end; $$ language plpgsql;
+
+create or replace function add_user_to_group(
+	uid text,
+	gid bigint,
+	added_by text,
+	role user_role,
+	accepted membership_acceptance default 'pending'
+)
+returns setof group_memberships as $$
+#variable_conflict use_variable
+declare
+	is_admin numeric;
+begin
+	select into is_admin count(*) from group_memberships as gm where gm.uid = added_by and gm.gid = gid and gm.role = 'admin';
+	if is_admin <> 1 then
+		return;
+	end if;
+	return QUERY insert into group_memberships
+		(uid, gid, added_by, role, accepted)
+		values (uid, gid, added_by, role, accepted)
+		on conflict do nothing
+		returning *;
+end; $$ language plpgsql;

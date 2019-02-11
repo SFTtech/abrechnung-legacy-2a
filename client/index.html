@@ -269,7 +269,7 @@
 			invite_user_to_group_form.elements.submit.disabled = true;
 			document.getElementById("invite_user_to_group_form").classList.add("hidden");
 			const gm = cache.group_memberships.get([store.last_uid, page.selected_group]);
-			if (! gm || gm.role !== "admin") {
+			if (! gm || gm.role !== "admin" || gm.accepted !== 'accepted') {
 				document.getElementById("invite_user_to_group_button").classList.add("hidden");
 			} else {
 				document.getElementById("invite_user_to_group_button").classList.remove("hidden");
@@ -386,7 +386,7 @@
 					return;
 				}
 				const gm = cache.group_memberships.get([my_uid, page.selected_group]);
-				if (! gm || gm.role !== 'admin') {
+				if (! gm || gm.role !== 'admin' || gm.accepted !== 'accepted') {
 					return;
 				}
 				const user_roles = await get_enum_user_role();

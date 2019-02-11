@@ -188,7 +188,7 @@ returns setof group_memberships as $$
 declare
 	is_admin numeric;
 begin
-	select into is_admin count(*) from group_memberships as gm where gm.uid = added_by and gm.gid = gid and gm.role = 'admin';
+	select into is_admin count(*) from group_memberships as gm where gm.uid = added_by and gm.gid = gid and gm.role = 'admin' and gm.accepted = 'accepted';
 	if is_admin <> 1 then
 		return;
 	end if;

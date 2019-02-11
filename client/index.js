@@ -150,7 +150,14 @@ const get_enum_user_role = async () => {
         cache.enums.user_role = new Set(await client.crpc("get_enum_user_role", {}));
     }
     return cache.enums.user_role;
-}
+};
+
+const get_enum_membership_acceptance  = async () => {
+    if (typeof cache.enums.accepted !== "object") {
+        cache.enums.get_enum_membership_acceptance = new Set(await client.crpc("get_enum_membership_acceptance", {}));
+    }
+    return cache.enums.get_enum_membership_acceptance;
+};
 
 const connect = () => {
     page.status("Connecting...");

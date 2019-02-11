@@ -199,12 +199,14 @@
 				page.invite_user_to_group_form_hide();
 			}
 		};
-		page.table_update_group = (uid, gid) => {
+		page.table_update_group = async (uid, gid) => {
 			const group = cache.groups.get([gid]);
 			const membership = cache.group_memberships.get([uid, gid]);
 			if (! group || ! membership) {
 				return;
 			}
+			const membership_acceptance = await get_enum_membership_acceptance();
+			const my_groups_table = document.getElementById("my_groups_table");
 			const table_row_id = "my_groups_table_row " + gid;
 			let row = document.getElementById(table_row_id);
 			if (row === null) {
@@ -232,7 +234,42 @@
 				row.children[0].appendChild(button);
 				row.children[0].appendChild(label);
 				
-				document.getElementById("my_groups_table").append(row);
+				my_groups_table.append(row);
+			}
+
+			const membership_status_elem_id = "my_groups_tab_membership_status_selection " + gid ;
+			let membership_status_elem = document.getElementById(membership_status_elem_id);
+			if (membership.accepted === 'pending' && ! membership_status_elem) {
+				membership_status_elem = document.createElement("select");
+				membership_status_elem.setAttribute("id", membership_status_elem_id);
+				membership_status_elem.setAttribute("name", membership_status_elem_id);
+				membership_status_elem.addEventListener("change", (e) => {
+					console.log("goup", gid, "select", e.target.value);
+				}
+				);
+				for (const status of membership_acceptance) {
+					const option_elem_id = `${membership_status_elem_id} ${status}`;
+					let option_elem = document.getElementById(option_elem_id);
+					if (! option_elem) {
+						option_elem = document.createElement("option");
+						option_elem.setAttribute("value", status);
+						option_elem.appendChild(document.createTextNode(status));
+						membership_status_elem.appendChild(option_elem);
+					}
+					if (status === "pending") {
+						option_elem.setAttribute("selected", 1);
+					}
+				}
+				let child;
+				while (child = row.children[9].lastChild) {
+					row.children[9].removeChild(child);
+				}
+				row.children[9].appendChild(membership_status_elem);
+			} else if (membership_status_elem) {
+				row.children[9].removeChild(membership_status_elem);
+				row.children[9].textContent = membership.accepted;
+			} else {
+				row.children[9].textContent = membership.accepted;
 			}
 
 			row.children[1].textContent = group.name;
@@ -241,9 +278,8 @@
 			row.children[4].textContent = membership.role;
 			row.children[5].textContent = group.created;
 			row.children[6].textContent = group.created_by;
-			row.children[7].textContent = membership.invited;
-			row.children[8].textContent = membership.invited_by;
-			row.children[9].textContent = membership.accepted;
+			row.children[7].textContent = membership.added;
+			row.children[8].textContent = membership.added_by;
 		};
 
 		/*

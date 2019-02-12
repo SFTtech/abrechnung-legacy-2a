@@ -152,11 +152,19 @@ const get_enum_user_role = async () => {
     return cache.enums.user_role;
 };
 
+var get_enum_membership_acceptance_promise;
 const get_enum_membership_acceptance  = async () => {
-    if (typeof cache.enums.accepted !== "object") {
-        cache.enums.get_enum_membership_acceptance = new Set(await client.crpc("get_enum_membership_acceptance", {}));
+    if (typeof cache.enums.membership_acceptance !== "object") {
+        if (! get_enum_membership_acceptance_promise) {
+            get_enum_membership_acceptance_promise = client.crpc("get_enum_membership_acceptance", {});
+        }
+        const answer = await get_enum_membership_acceptance_promise;
+        if (typeof cache.enums.membership_acceptance !== "object") {
+            cache.enums.membership_acceptance = new Set(answer);
+        }
     }
-    return cache.enums.get_enum_membership_acceptance;
+
+    return cache.enums.membership_acceptance;
 };
 
 const connect = () => {

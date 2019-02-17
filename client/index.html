@@ -153,10 +153,7 @@
 
 			let table_body = document.getElementById("selected_group_table");
 			if (page.selected_group !== gid) {
-				let child;
-				while (child = table_body.lastChild) {
-					table_body.removeChild(child);
-				}
+				remove_all_children(table_body);
 				page.selected_group = gid;
 			}
 			for (const member of members.values()) {
@@ -240,30 +237,15 @@
 			const membership_status_elem_id = "my_groups_tab_membership_status_selection " + gid ;
 			let membership_status_elem = document.getElementById(membership_status_elem_id);
 			if (membership.accepted === 'pending' && ! membership_status_elem) {
-				membership_status_elem = document.createElement("select");
-				membership_status_elem.setAttribute("id", membership_status_elem_id);
-				membership_status_elem.setAttribute("name", membership_status_elem_id);
-				membership_status_elem.addEventListener("change", (e) => {
-					console.log("goup", gid, "select", e.target.value);
-				}
+				membership_status_elem = create_selection_if_not_exists(
+					membership_status_elem_id,
+					membership_acceptance,
+					'pending',
+					(e) => {
+						console.log("goup", gid, "select", e.target.value);
+					}
 				);
-				for (const status of membership_acceptance) {
-					const option_elem_id = `${membership_status_elem_id} ${status}`;
-					let option_elem = document.getElementById(option_elem_id);
-					if (! option_elem) {
-						option_elem = document.createElement("option");
-						option_elem.setAttribute("value", status);
-						option_elem.appendChild(document.createTextNode(status));
-						membership_status_elem.appendChild(option_elem);
-					}
-					if (status === "pending") {
-						option_elem.setAttribute("selected", 1);
-					}
-				}
-				let child;
-				while (child = row.children[9].lastChild) {
-					row.children[9].removeChild(child);
-				}
+				remove_all_children(row.children[9])
 				row.children[9].appendChild(membership_status_elem);
 			} else if (membership_status_elem) {
 				row.children[9].removeChild(membership_status_elem);
@@ -426,21 +408,12 @@
 					return;
 				}
 				const user_roles = await get_enum_user_role();
-				const role_select_elem = document.getElementById("invite_user_to_group_form_role_selection");
-				for (const role of user_roles) {
-					const option_elem_id = `invite_user_to_group_form_role_selection ${role}`;
-					let option_elem = document.getElementById(option_elem_id);
-					if (! option_elem) {
-						option_elem = document.createElement("option");
-						option_elem.setAttribute("id", option_elem_id);
-						option_elem.setAttribute("value", role);
-						option_elem.appendChild(document.createTextNode(role));
-						role_select_elem.appendChild(option_elem);
-					}
-					if (role === "writer") {
-						option_elem.setAttribute("selected", 1);
-					}
-				}
+				const role_select_elem = create_selection_if_not_exists(
+					"invite_user_to_group_form_role_selection",
+					user_roles,
+					"writer",
+					null
+				);
 				e.target.classList.add("hidden");
 				document.getElementById("invite_user_to_group_form").classList.remove("hidden");
 			});

@@ -26,3 +26,30 @@ const assign_value_to_text_input_with_update_button = (text_input, value) => {
     metadata.button.disabled = true;
     text_input.value = value;
 };
+
+const create_selection_if_not_exists = (id, options, selected, event_listener) => {
+    let elem = document.getElementById(id);
+    if (! elem) {
+        elem = document.createElement("select");
+        elem.setAttribute("id", id);
+        elem.setAttribute("name", id);
+        if (event_listener) {
+            elem.addEventListener("change", event_listener);
+        }
+    }
+    for (const option of options) {
+        const option_elem_id = `${id} ${option}`;
+        let option_elem = document.getElementById(option_elem_id);
+        if (! option_elem) {
+            option_elem = document.createElement("option");
+            option_elem.setAttribute("id", option_elem_id);
+            option_elem.setAttribute("value", option);
+            option_elem.appendChild(document.createTextNode(option));
+            elem.appendChild(option_elem);
+        }
+        if (option === selected) {
+            option_elem.setAttribute("selected", 1);
+        }
+    }
+    return elem;
+};

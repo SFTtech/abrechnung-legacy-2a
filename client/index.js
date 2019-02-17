@@ -306,7 +306,7 @@ const connect = () => {
             }
             if (uid === store.last_uid) {
                 console.log("calling table.update_group for:", gid, "uid is:", uid);
-                page.table_update_group(uid, gid);
+                await page.table_update_group(uid, gid);
             }
         }
         page.set_selected_group(page.selected_group);

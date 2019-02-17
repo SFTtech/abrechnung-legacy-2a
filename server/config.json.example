@@ -1,20 +1,20 @@
 {
 	"service": {
-		"url": "https://abrechnungng.sft.mx",
+		"url": "https://abrechnung.sft.mx",
 		"name": "SFT Kybernetik-Abrechnung 2.0"
 	},
 	"websocket": {
 		"port": 4333,
 		"ssl_pem_files" : {
-			"key": "/etc/letsencrypt/live/jj.sft.mx/current.key",
-			"cert": "/etc/letsencrypt/live/jj.sft.mx/fullchain.pem",
-			"dhparam": "/etc/lighttpd/ssl/dh4096.pem",
+			"key": "/etc/letsencrypt/live/abrechnung.sft.mx/current.key",
+			"cert": "/etc/letsencrypt/live/abrechnung.sft.mx/fullchain.pem",
+			"dhparam": null,
 			"misc": {}
 		}
 	},
 	"database": {
 		"user": "abrechnung",
-		"password": "528b1a7128bff220",
+		"password": "Mb2.r5oHf-0t",
 		"host": "localhost",
 		"database": "abrechnung"
 	},
@@ -23,7 +23,7 @@
 		"port": 587,
 		"auth": {
 			"user": "abrechnung",
-			"password": "Ieb0noS5aidong5ahweeshee1quee7"
+			"pass": "Mb2.r5oHf-0t"
 		},
 		"address": "abrechnung@sft.mx"
 	}

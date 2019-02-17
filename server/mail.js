@@ -12,7 +12,7 @@ const email_config_to_nm_config = (ec) => {
         secure: (ec.port == 465),
         requireTLS: !! ec.requireTLS
     };
-    if (result.auth) {
+    if (ec.auth) {
         result.auth = ec.auth;
     }
     return result;

@@ -53,3 +53,10 @@ const create_selection_if_not_exists = (id, options, selected, event_listener) =
     }
     return elem;
 };
+
+const remove_all_children = (elem) => {
+    let child;
+    while (child = elem.lastChild) {
+        elem.removeChild(child);
+    }
+};

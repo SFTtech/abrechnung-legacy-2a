@@ -121,7 +121,8 @@
 			}
 		};
 		page.selected_group = -1;
-		page.set_selected_group = (gid, action_selected=false) => {
+		page.set_selected_group = async (gid, action_selected=false) => {
+			const user_roles = await get_enum_user_role();
 			const group = cache.groups.get([gid]);
 			if (! group) {
 				return;
@@ -156,6 +157,11 @@
 				remove_all_children(table_body);
 				page.selected_group = gid;
 			}
+
+			const my_uid = store.last_uid;
+			const my_membership = cache.group_memberships.get([my_uid, gid]);
+			const my_role = my_membership.role;
+			const my_accepted = my_membership.accepted;
 			for (const member of members.values()) {
 				const uid = member.uid;
 				const user = users.get([uid]);
@@ -182,10 +188,65 @@
 					table_body.append(row);
 				}
 
+				const role_elem_id = `selected_group_table_member_role_selection ${gid} ${uid}`;
+				let role_elem = document.getElementById(role_elem_id);
+				if (my_role === 'admin' && my_accepted === 'accepted') {
+					if (! role_elem) {
+						role_elem = create_selection_if_not_exists(
+							`selected_group_table_member_role_selection ${gid} ${uid}`,
+							user_roles,
+							member.role,
+							async (e) => {
+								const new_role = e.target.value;
+								// as we may run at a time when group/memberships have already again changed:
+								// we must read group, membership etc. from the cache again
+								// and must not reuse the one from our environment
+								const member = cache.group_memberships.get([uid, gid]);
+								if (new_role === member.role) {
+									// user already has that role
+									return;
+								} 
+								console.log("change_user_role", uid, gid, my_role, member.role, e.target.value);
+								try {
+									const change = await change_user_role(uid, gid, e.target.value);
+									console.log(change);
+									// we just run async => may received and handled an update, so get the again
+									// actual values from the cache
+									const member = cache.group_memberships.get([uid, gid]);
+									if (change.modified_membership.rows.length === 0 && member.role !== new_role) {
+										// Either the server refused to change the role
+										// or another admin already changed it so there was nothing to change, but we did not get
+										// the update from the server yet.
+										// In the latter case this will soon happen and the selection then will be
+										// set accordingly
+										role_elem.value = member.role;
+										const group = cache.groups.get([gid]);
+										page.status(`role change for user ${uid} in group ${gid}/${group.name} has been rejected by the server or another admin already made the same change`, "error");
+									}
+								} catch (error) {
+									const member = cache.group_memberships.get([uid, gid]);
+									const group = cache.groups.get([gid]);
+									page.status(`could not change role of user ${uid} in group ${gid}/${group.name}: ` + error, "error");
+									role_elem.value = member.role;
+									console.log("role change failed, old value is", option.value);
+								}
+							}
+						);
+						row.children[3].appendChild(role_elem);
+					} else {
+						role_elem.value = member.role;
+					}
+				} else {
+					if (role_elem) {
+						remove_all_children(row.children[3]);
+						role_elem.value = member.role;
+					}
+					row.children[3].textContent = member.role;
+				}
+
 				row.children[0].textContent = uid;
 				row.children[1].textContent = name;
 				row.children[2].textContent = 0; // FIXME: balance
-				row.children[3].textContent = member.role;
 				row.children[4].textContent = added;
 				row.children[5].textContent = added_by;
 				row.children[6].textContent = member.added;
@@ -221,9 +282,9 @@
 				button.setAttribute("id", button_id);
 				button.setAttribute("name", "my_groups_table_row_select_button");
 				button.setAttribute("value", gid);
-				button.addEventListener("click", () => {
+				button.addEventListener("click", async () => {
 					console.log("selected group: ", gid);
-					page.set_selected_group(gid, true);
+					await page.set_selected_group(gid, true);
 				});
 				let label = document.createElement("label");
 				label.appendChild(document.createTextNode(gid));

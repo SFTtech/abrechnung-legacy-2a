@@ -308,6 +308,11 @@ Please set a login password: ${config.service.url}/set_password.html?uid=${query
         return inserted_membership;
     }
 
+    async change_user_role(uid, gid, admin, new_role) {
+        const modified_membership = await this.query("select change_user_role($1, $2, $3, $4);", [uid, gid, admin, new_role]);
+        return modified_membership;
+    }
+
     async get_enum_user_role() {
         return (await this.query("SELECT unnest(enum_range(NULL::user_role)) as value;")
         ).rows.map( (elem) => (elem.value) );

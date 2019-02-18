@@ -199,6 +199,21 @@ begin
 		returning *;
 end; $$ language plpgsql;
 
+create or replace function accept_or_reject_group_membership(
+	uid text,
+	gid bigint,
+	accepted membership_acceptance default 'accepted'
+)
+returns setof group_memberships as $$
+#variable_conflict use_variable
+begin
+	assert accepted in ('accepted', 'rejected'), 'accepted has inacceptable value';
+	return QUERY update group_memberships as gm
+		set accepted = accepted
+		where gm.uid = uid and gm.gid = gid and gm.accepted = 'pending'
+		returning *;
+end; $$ language plpgsql;
+
 create or replace function change_user_role(
 	uid text,
 	gid bigint,

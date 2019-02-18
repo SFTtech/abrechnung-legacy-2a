@@ -308,6 +308,11 @@ Please set a login password: ${config.service.url}/set_password.html?uid=${query
         return inserted_membership;
     }
 
+    async accept_or_reject_group_membership(uid, gid, accepted='accepted') {
+        const accepted_membership = await this.query("select accept_or_reject_group_membership($1, $2, $3);", [uid, gid, accepted]);
+        return accepted_membership;
+    }
+
     async change_user_role(uid, gid, admin, new_role) {
         const modified_membership = await this.query("select change_user_role($1, $2, $3, $4);", [uid, gid, admin, new_role]);
         return modified_membership;

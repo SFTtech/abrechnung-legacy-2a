@@ -145,11 +145,10 @@ const invite_user_to_group = async (uid, gid, role) => {
     });
 };
 
-const accept_or_reject = async (gid, accepted) => {
-    if (accepted === "") { throw Error("role cannot be empty"); }
+const accept_or_reject_group_membership = async (gid, accepted) => {
     if (! Number.isInteger(gid) || gid < 0) { throw Error("selected group is bogus"); }
 
-    await client.crpc("accept_or_reject_membership", {
+    return await client.crpc("accept_or_reject_group_membership", {
         gid: gid,
         accepted: accepted
     });
@@ -280,18 +279,18 @@ const connect = () => {
         const missing_gids = new Set(group_memberships.map(
             (elem) => (elem.gid)
         ).filter(
-            (elem) => (! cache.groups.has([elem.gid]))
+            (gid) => (! cache.groups.has([gid]))
         ));
         const missing_uids = new Set(group_memberships.map(
             (elem) => (elem.uid)
         ).filter(
-            (elem) => (! cache.users.has([elem.gid]))
+            (uid) => (! cache.users.has([uid]))
         ));
 
         let changed_groups = [];
-        if (missing_gids.length > 0) {
+        if (missing_gids.size > 0) {
             const missing_groups = (await client.crpc("get_groups_by_id", {
-                "ids": missing_gids,
+                "ids": Array.from(missing_gids),
                 "last_mod_seq": 0
             })).groups;
 
@@ -302,9 +301,9 @@ const connect = () => {
         }
 
         let changed_users = [];
-        if (missing_uids.length > 0) {
+        if (missing_uids.size > 0) {
             const missing_users = (await client.crpc("get_users_by_id", {
-                "ids": missing_uids,
+                "ids": Array.from(missing_uids),
                 "last_mod_seq": 0
             })).users;
 
@@ -327,7 +326,7 @@ const connect = () => {
             if (! cache.users.has([uid])) {
                 console.log("user is missing:", uid);
             } else {
-                console.log("group =", cache.users.get([uid]));
+                console.log("user =", cache.users.get([uid]));
             }
             if (uid === store.last_uid) {
                 console.log("calling table.update_group for:", gid, "uid is:", uid);

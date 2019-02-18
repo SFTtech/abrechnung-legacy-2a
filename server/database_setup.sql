@@ -198,3 +198,24 @@ begin
 		on conflict do nothing
 		returning *;
 end; $$ language plpgsql;
+
+create or replace function change_user_role(
+	uid text,
+	gid bigint,
+	admin text,
+	new_role user_role
+)
+returns setof group_memberships as $$
+#variable_conflict use_variable
+declare
+	is_admin numeric;
+begin
+	select into is_admin count(*) from group_memberships as gm where gm.uid = added_by and gm.gid = gid and gm.role = 'admin' and gm.accepted = 'accepted';
+	if is_admin <> 1 then
+		return;
+	end if;
+	return QUERY update group_memberships as gm
+		set role = new_role
+		where gm.uid = uid and gm.gid = gid and gm.role <> 'admin'
+		returning *;
+end; $$ language plpgsql;

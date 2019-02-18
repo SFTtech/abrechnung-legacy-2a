@@ -258,12 +258,12 @@
 			}
 		};
 		page.table_update_group = async (uid, gid) => {
+			const membership_acceptance = await get_enum_membership_acceptance();
 			const group = cache.groups.get([gid]);
 			const membership = cache.group_memberships.get([uid, gid]);
 			if (! group || ! membership) {
 				return;
 			}
-			const membership_acceptance = await get_enum_membership_acceptance();
 			const my_groups_table = document.getElementById("my_groups_table");
 			const table_row_id = "my_groups_table_row " + gid;
 			let row = document.getElementById(table_row_id);
@@ -297,21 +297,53 @@
 
 			const membership_status_elem_id = "my_groups_tab_membership_status_selection " + gid ;
 			let membership_status_elem = document.getElementById(membership_status_elem_id);
-			if (membership.accepted === 'pending' && ! membership_status_elem) {
-				membership_status_elem = create_selection_if_not_exists(
-					membership_status_elem_id,
-					membership_acceptance,
-					'pending',
-					(e) => {
-						console.log("goup", gid, "select", e.target.value);
-					}
-				);
-				remove_all_children(row.children[9])
-				row.children[9].appendChild(membership_status_elem);
-			} else if (membership_status_elem) {
-				row.children[9].removeChild(membership_status_elem);
-				row.children[9].textContent = membership.accepted;
+			if (membership.accepted === 'pending') {
+				if (! membership_status_elem) {
+					membership_status_elem = create_selection_if_not_exists(
+						membership_status_elem_id,
+						membership_acceptance,
+						'pending',
+						async (e) => {
+							const accepted = e.target.value;
+							console.log("goup", gid, "select", accepted);
+							if (accepted === 'pending') {
+								return;
+							}
+							const my_uid = store.last_uid;
+							try {
+								const change = await accept_or_reject_group_membership(gid, accepted);
+								console.log(change);
+								// we just run async => may received and handled an update, so get the again
+								// actual values from the cache
+								const member = cache.group_memberships.get([my_uid, gid]);
+								if (change.accepted_membership.rows.length === 0 && member.accepted !== accepted) {
+									// Either the server refused to change the accepted status
+									// or the user concurrently changed it so there was nothing to change, but we did not get
+									// the update from the server yet.
+									// In the latter case this will soon happen and the selection then will be
+									// set accordingly
+									membership_status_elem.value = member.accepted;
+									const group = cache.groups.get([gid]);
+									page.status(`accepted/rejected status change for user ${uid} in group ${gid}/${group.name} has been rejected by the server or was obsolete`, "error");
+								}
+							} catch (error) {
+								const member = cache.group_memberships.get([my_uid, gid]);
+								const group = cache.groups.get([gid]);
+								page.status(`could not change accpeted/rejected status of user ${uid} in group ${gid}/${group.name}: ` + error, "error");
+								membership_status_elem.value = member.accepted;
+							}
+
+						}
+					);
+					remove_all_children(row.children[9])
+					row.children[9].appendChild(membership_status_elem);
+				} else {
+					membership_status_elem.value = membership.accepted;
+				}
 			} else {
+				if (membership_status_elem) {
+					row.children[9].removeChild(membership_status_elem);
+				}
 				row.children[9].textContent = membership.accepted;
 			}
 

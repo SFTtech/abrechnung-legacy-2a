@@ -145,6 +145,21 @@ const invite_user_to_group = async (uid, gid, role) => {
     });
 };
 
+const change_user_role = async (uid, gid, new_role) => {
+    if (uid === "") { throw Error("uid cannot be empty"); }
+    if (new_role === "") { throw Error("role cannot be empty"); }
+    if (! Number.isInteger(gid) || gid < 0) { throw Error("selected group is bogus"); }
+
+    const roles = await get_enum_user_role();
+    if (! roles.has(new_role)) { throw Error("role is not a valid user_role"); }
+
+    return await client.crpc("change_user_role", {
+        uid: uid,
+        gid: gid,
+        new_role: new_role
+    });
+};
+
 const get_enum_user_role = async () => {
     if (typeof cache.enums.user_role !== "object") {
         cache.enums.user_role = new Set(await client.crpc("get_enum_user_role", {}));
@@ -222,7 +237,7 @@ const connect = () => {
             const max_last_mod_seq = users_of_groups_of_user[0].max_last_mod_seq;
             cache.users.insert_or_update(users_of_groups_of_user, max_last_mod_seq);
             // update the selected group tab: there may be user infos
-            page.set_selected_group(page.selected_group);
+            await page.set_selected_group(page.selected_group);
         }
     };
 

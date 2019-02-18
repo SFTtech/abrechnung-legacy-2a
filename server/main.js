@@ -595,6 +595,20 @@ crpc_functions.invite_user_to_group = async (connection, args) => {
     return { "added_membership": inserted_membership };
 };
 
+const ARGS_CHANGE_USER_ROLE = {};
+ARGS_CHANGE_USER_ROLE.uid = typecheck.string_uid;
+ARGS_CHANGE_USER_ROLE.gid = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);
+ARGS_CHANGE_USER_ROLE.new_role = typecheck.string_user_role;
+
+crpc_functions.change_user_role = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_CHANGE_USER_ROLE);
+
+    const self_uid = await connection.get_user();
+
+    const modified_membership = await connection.db.change_user_role(args.uid, args.gid, self_uid, args.new_role);
+    return { "modified_membership": modified_membership };
+};
+
 crpc_functions.get_enum_user_role = async (connection, args) => {
     typecheck.validate_object_structure(args, {});
 

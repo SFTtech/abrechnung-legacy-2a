@@ -145,6 +145,16 @@ const invite_user_to_group = async (uid, gid, role) => {
     });
 };
 
+const accept_or_reject = async (gid, accepted) => {
+    if (accepted === "") { throw Error("role cannot be empty"); }
+    if (! Number.isInteger(gid) || gid < 0) { throw Error("selected group is bogus"); }
+
+    await client.crpc("accept_or_reject_membership", {
+        gid: gid,
+        accepted: accepted
+    });
+};
+
 const change_user_role = async (uid, gid, new_role) => {
     if (uid === "") { throw Error("uid cannot be empty"); }
     if (new_role === "") { throw Error("role cannot be empty"); }

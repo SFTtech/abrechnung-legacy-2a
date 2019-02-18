@@ -595,6 +595,19 @@ crpc_functions.invite_user_to_group = async (connection, args) => {
     return { "added_membership": inserted_membership };
 };
 
+const ARGS_ACCEPT_OR_REJECT_GROUP_MEMBERSHIP = {};
+ARGS_ACCEPT_OR_REJECT_GROUP_MEMBERSHIP.gid = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);
+ARGS_ACCEPT_OR_REJECT_GROUP_MEMBERSHIP.accepted = typecheck.string_re("^accepted|rejected$");
+
+crpc_functions.accept_or_reject_group_membership = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_ACCEPT_OR_REJECT_GROUP_MEMBERSHIP);
+
+    const self_uid = await connection.get_user();
+
+    const accepted_membership = await connection.db.accept_or_reject_group_membership(self_uid, args.gid, args.accepted);
+    return { "accepted_membership": accepted_membership };
+};
+
 const ARGS_CHANGE_USER_ROLE = {};
 ARGS_CHANGE_USER_ROLE.uid = typecheck.string_uid;
 ARGS_CHANGE_USER_ROLE.gid = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);

@@ -98,7 +98,7 @@ create table if not exists group_memberships (
 	added timestamp not null default current_timestamp,
 	added_by text not null references users (id),
 	role user_role not null,
-	acceped membership_acceptance not null default 'pending',
+	accepted membership_acceptance not null default 'pending',
 	primary key (uid, gid),
 	last_mod_seq bigint not null
 );
@@ -166,3 +166,71 @@ end; $$ language plpgsql;
 
 drop trigger if exists patches_seq_trigger on patches;
 create trigger patches_seq_trigger after insert or update on patches for each row execute procedure patches_seq_trigger();
+
+create or replace function add_group(name text, created_by text) returns groups as $$
+declare
+	inserted_group groups%ROWTYPE;
+begin
+	insert into groups (name, created_by) values (name, created_by) returning * into inserted_group;
+	insert into group_memberships (uid, gid, added_by, role, accepted) values (created_by, inserted_group.id, created_by, 'admin', 'accepted');
+	return inserted_group;
+end; $$ language plpgsql;
+
+create or replace function add_user_to_group(
+	uid text,
+	gid bigint,
+	added_by text,
+	role user_role,
+	accepted membership_acceptance default 'pending'
+)
+returns setof group_memberships as $$
+#variable_conflict use_variable
+declare
+	is_admin numeric;
+begin
+	select into is_admin count(*) from group_memberships as gm where gm.uid = added_by and gm.gid = gid and gm.role = 'admin' and gm.accepted = 'accepted';
+	if is_admin <> 1 then
+		return;
+	end if;
+	return QUERY insert into group_memberships
+		(uid, gid, added_by, role, accepted)
+		values (uid, gid, added_by, role, accepted)
+		on conflict do nothing
+		returning *;
+end; $$ language plpgsql;
+
+create or replace function accept_or_reject_group_membership(
+	uid text,
+	gid bigint,
+	accepted membership_acceptance default 'accepted'
+)
+returns setof group_memberships as $$
+#variable_conflict use_variable
+begin
+	assert accepted in ('accepted', 'rejected'), 'accepted has inacceptable value';
+	return QUERY update group_memberships as gm
+		set accepted = accepted
+		where gm.uid = uid and gm.gid = gid and gm.accepted = 'pending'
+		returning *;
+end; $$ language plpgsql;
+
+create or replace function change_user_role(
+	uid text,
+	gid bigint,
+	admin text,
+	new_role user_role
+)
+returns setof group_memberships as $$
+#variable_conflict use_variable
+declare
+	is_admin numeric;
+begin
+	select into is_admin count(*) from group_memberships as gm where gm.uid = added_by and gm.gid = gid and gm.role = 'admin' and gm.accepted = 'accepted';
+	if is_admin <> 1 then
+		return;
+	end if;
+	return QUERY update group_memberships as gm
+		set role = new_role
+		where gm.uid = uid and gm.gid = gid and gm.role <> 'admin'
+		returning *;
+end; $$ language plpgsql;

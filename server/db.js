@@ -297,6 +297,37 @@ Please set a login password: ${config.service.url}/set_password.html?uid=${query
             );
         }
     }
+
+    async add_group(name, created_by) {
+        const inserted_group = await this.query("select add_group($1, $2);", [name, created_by]);
+        return inserted_group;
+    }
+
+    async add_user_to_group(uid, gid, added_by, role, accepted='pending') {
+        const inserted_membership = await this.query("select add_user_to_group($1, $2, $3, $4, $5);", [uid, gid, added_by, role, accepted]);
+        return inserted_membership;
+    }
+
+    async accept_or_reject_group_membership(uid, gid, accepted='accepted') {
+        const accepted_membership = await this.query("select accept_or_reject_group_membership($1, $2, $3);", [uid, gid, accepted]);
+        return accepted_membership;
+    }
+
+    async change_user_role(uid, gid, admin, new_role) {
+        const modified_membership = await this.query("select change_user_role($1, $2, $3, $4);", [uid, gid, admin, new_role]);
+        return modified_membership;
+    }
+
+    async get_enum_user_role() {
+        return (await this.query("SELECT unnest(enum_range(NULL::user_role)) as value;")
+        ).rows.map( (elem) => (elem.value) );
+    }
+
+    async get_enum_membership_acceptance() {
+        return (await this.query("SELECT unnest(enum_range(NULL::membership_acceptance)) as value;")
+        ).rows.map( (elem) => (elem.value) );
+    }
+
 };
 
 module.exports = () => new DB();

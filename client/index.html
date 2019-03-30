@@ -121,7 +121,8 @@
 			}
 		};
 		page.selected_group = -1;
-		page.set_selected_group = (gid) => {
+		page.set_selected_group = async (gid, action_selected=false) => {
+			const user_roles = await get_enum_user_role();
 			const group = cache.groups.get([gid]);
 			if (! group) {
 				return;
@@ -153,12 +154,14 @@
 
 			let table_body = document.getElementById("selected_group_table");
 			if (page.selected_group !== gid) {
-				let child;
-				while (child = table_body.lastChild) {
-					table_body.removeChild(child);
-				}
+				remove_all_children(table_body);
 				page.selected_group = gid;
 			}
+
+			const my_uid = store.last_uid;
+			const my_membership = cache.group_memberships.get([my_uid, gid]);
+			const my_role = my_membership.role;
+			const my_accepted = my_membership.accepted;
 			for (const member of members.values()) {
 				const uid = member.uid;
 				const user = users.get([uid]);
@@ -185,24 +188,83 @@
 					table_body.append(row);
 				}
 
+				const role_elem_id = `selected_group_table_member_role_selection ${gid} ${uid}`;
+				let role_elem = document.getElementById(role_elem_id);
+				if (my_role === 'admin' && my_accepted === 'accepted') {
+					if (! role_elem) {
+						role_elem = create_selection_if_not_exists(
+							`selected_group_table_member_role_selection ${gid} ${uid}`,
+							user_roles,
+							member.role,
+							async (e) => {
+								const new_role = e.target.value;
+								// as we may run at a time when group/memberships have already again changed:
+								// we must read group, membership etc. from the cache again
+								// and must not reuse the one from our environment
+								const member = cache.group_memberships.get([uid, gid]);
+								if (new_role === member.role) {
+									// user already has that role
+									return;
+								} 
+								console.log("change_user_role", uid, gid, my_role, member.role, e.target.value);
+								try {
+									const change = await change_user_role(uid, gid, e.target.value);
+									console.log(change);
+									// we just run async => may received and handled an update, so get the again
+									// actual values from the cache
+									const member = cache.group_memberships.get([uid, gid]);
+									if (change.modified_membership.rows.length === 0 && member.role !== new_role) {
+										// Either the server refused to change the role
+										// or another admin already changed it so there was nothing to change, but we did not get
+										// the update from the server yet.
+										// In the latter case this will soon happen and the selection then will be
+										// set accordingly
+										role_elem.value = member.role;
+										const group = cache.groups.get([gid]);
+										page.status(`role change for user ${uid} in group ${gid}/${group.name} has been rejected by the server or another admin already made the same change`, "error");
+									}
+								} catch (error) {
+									const member = cache.group_memberships.get([uid, gid]);
+									const group = cache.groups.get([gid]);
+									page.status(`could not change role of user ${uid} in group ${gid}/${group.name}: ` + error, "error");
+									role_elem.value = member.role;
+									console.log("role change failed, old value is", option.value);
+								}
+							}
+						);
+						row.children[3].appendChild(role_elem);
+					} else {
+						role_elem.value = member.role;
+					}
+				} else {
+					if (role_elem) {
+						remove_all_children(row.children[3]);
+						role_elem.value = member.role;
+					}
+					row.children[3].textContent = member.role;
+				}
+
 				row.children[0].textContent = uid;
 				row.children[1].textContent = name;
 				row.children[2].textContent = 0; // FIXME: balance
-				row.children[3].textContent = member.role;
 				row.children[4].textContent = added;
 				row.children[5].textContent = added_by;
 				row.children[6].textContent = member.added;
 				row.children[7].textContent = member.added_by;
 				row.children[8].textContent = member.accepted;
 			}
-
+			if (action_selected) {
+				page.invite_user_to_group_form_hide();
+			}
 		};
-		page.table_update_group = (uid, gid) => {
+		page.table_update_group = async (uid, gid) => {
+			const membership_acceptance = await get_enum_membership_acceptance();
 			const group = cache.groups.get([gid]);
 			const membership = cache.group_memberships.get([uid, gid]);
 			if (! group || ! membership) {
 				return;
 			}
+			const my_groups_table = document.getElementById("my_groups_table");
 			const table_row_id = "my_groups_table_row " + gid;
 			let row = document.getElementById(table_row_id);
 			if (row === null) {
@@ -220,9 +282,9 @@
 				button.setAttribute("id", button_id);
 				button.setAttribute("name", "my_groups_table_row_select_button");
 				button.setAttribute("value", gid);
-				button.addEventListener("click", () => {
+				button.addEventListener("click", async () => {
 					console.log("selected group: ", gid);
-					page.set_selected_group(gid);
+					await page.set_selected_group(gid, true);
 				});
 				let label = document.createElement("label");
 				label.appendChild(document.createTextNode(gid));
@@ -230,22 +292,69 @@
 				row.children[0].appendChild(button);
 				row.children[0].appendChild(label);
 				
-				document.getElementById("my_groups_table").append(row);
+				my_groups_table.append(row);
 			}
 
-			if (typeof joined === 'object') {
-				joined = "pending";
+			const membership_status_elem_id = "my_groups_tab_membership_status_selection " + gid ;
+			let membership_status_elem = document.getElementById(membership_status_elem_id);
+			if (membership.accepted === 'pending') {
+				if (! membership_status_elem) {
+					membership_status_elem = create_selection_if_not_exists(
+						membership_status_elem_id,
+						membership_acceptance,
+						'pending',
+						async (e) => {
+							const accepted = e.target.value;
+							console.log("goup", gid, "select", accepted);
+							if (accepted === 'pending') {
+								return;
+							}
+							const my_uid = store.last_uid;
+							try {
+								const change = await accept_or_reject_group_membership(gid, accepted);
+								console.log(change);
+								// we just run async => may received and handled an update, so get the again
+								// actual values from the cache
+								const member = cache.group_memberships.get([my_uid, gid]);
+								if (change.accepted_membership.rows.length === 0 && member.accepted !== accepted) {
+									// Either the server refused to change the accepted status
+									// or the user concurrently changed it so there was nothing to change, but we did not get
+									// the update from the server yet.
+									// In the latter case this will soon happen and the selection then will be
+									// set accordingly
+									membership_status_elem.value = member.accepted;
+									const group = cache.groups.get([gid]);
+									page.status(`accepted/rejected status change for user ${uid} in group ${gid}/${group.name} has been rejected by the server or was obsolete`, "error");
+								}
+							} catch (error) {
+								const member = cache.group_memberships.get([my_uid, gid]);
+								const group = cache.groups.get([gid]);
+								page.status(`could not change accpeted/rejected status of user ${uid} in group ${gid}/${group.name}: ` + error, "error");
+								membership_status_elem.value = member.accepted;
+							}
+
+						}
+					);
+					remove_all_children(row.children[9])
+					row.children[9].appendChild(membership_status_elem);
+				} else {
+					membership_status_elem.value = membership.accepted;
+				}
+			} else {
+				if (membership_status_elem) {
+					row.children[9].removeChild(membership_status_elem);
+				}
+				row.children[9].textContent = membership.accepted;
 			}
 
 			row.children[1].textContent = group.name;
 			row.children[2].textContent = 0; // membership.my_balance
 			row.children[3].textContent = "1970-01-01"; // group.last_change
-			row.children[4].textContent = membership.my_role;
+			row.children[4].textContent = membership.role;
 			row.children[5].textContent = group.created;
 			row.children[6].textContent = group.created_by;
-			row.children[7].textContent = membership.invited;
-			row.children[8].textContent = membership.invited_by;
-			row.children[9].textContent = membership.accepted;
+			row.children[7].textContent = membership.added;
+			row.children[8].textContent = membership.added_by;
 		};
 
 		/*
@@ -265,12 +374,26 @@
 		}
 		*/
 
+		page.invite_user_to_group_form_hide = () => {
+			const invite_user_to_group_form = document.getElementById("invite_user_to_group_form");
+			invite_user_to_group_form.elements.uid.value = "";
+			invite_user_to_group_form.elements.submit.disabled = true;
+			document.getElementById("invite_user_to_group_form").classList.add("hidden");
+			const gm = cache.group_memberships.get([store.last_uid, page.selected_group]);
+			if (! gm || gm.role !== "admin" || gm.accepted !== 'accepted') {
+				document.getElementById("invite_user_to_group_button").classList.add("hidden");
+			} else {
+				document.getElementById("invite_user_to_group_button").classList.remove("hidden");
+			}
+		};
+
 		window.addEventListener("load", () => {
 			document.getElementById("login_form").addEventListener("submit", (e) => {
 				e.preventDefault();
 				login_password(e.target.elements.user.value, e.target.elements.password.value, e.target.elements.remember.checked);
 			});
 			document.getElementById("logout_button").addEventListener("click", () => { logout(); });
+
 			document.getElementById("my_account_email_update_abort").addEventListener("click", () => { abort_update_email(); });
 			document.getElementById("add_new_user_button").addEventListener("click", (e) => {
 				e.target.classList.add("hidden");
@@ -333,6 +456,85 @@
 					page.status("could not update account email: " + error, "error");
 				}
 			});
+
+			document.getElementById("add_new_group_button").addEventListener("click", (e) => {
+				e.target.classList.add("hidden");
+				document.getElementById("add_new_group_form").classList.remove("hidden");
+			});
+			const add_new_group_form = document.getElementById("add_new_group_form");
+			const add_new_group_form_on_input = () => {
+				let disable_submit = false;
+				if (add_new_group_form.elements.name.value === "") { disable_submit = true; }
+				add_new_group_form.elements.submit.disabled = disable_submit;
+			};
+			const add_new_group_form_hide = () => {
+				const add_new_group_form = document.getElementById("add_new_group_form");
+				add_new_group_form.elements.name.value = "";
+				add_new_group_form.elements.submit.disabled = true;
+				document.getElementById("add_new_group_form").classList.add("hidden");
+				document.getElementById("add_new_group_button").classList.remove("hidden");
+			};
+			document.getElementById("add_new_group_form_abort_button").addEventListener("click", add_new_group_form_hide);
+			add_new_group_form.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				try {
+					await add_new_group(
+						add_new_group_form.elements.name.value,
+					);
+				} catch (error) {
+					// TODO: if the error can be analyzed more directly, display it in the form
+					page.status("could not add new group: " + error, "error");
+					return;
+				}
+				add_new_group_form_hide();
+			});
+
+			add_new_group_form.elements.name.addEventListener("input", add_new_group_form_on_input);
+
+			document.getElementById("invite_user_to_group_button").addEventListener("click", async (e) => {
+				const my_uid = store.last_uid;
+				if (my_uid === undefined) {
+					return;
+				}
+				const gm = cache.group_memberships.get([my_uid, page.selected_group]);
+				if (! gm || gm.role !== 'admin' || gm.accepted !== 'accepted') {
+					return;
+				}
+				const user_roles = await get_enum_user_role();
+				const role_select_elem = create_selection_if_not_exists(
+					"invite_user_to_group_form_role_selection",
+					user_roles,
+					"writer",
+					null
+				);
+				e.target.classList.add("hidden");
+				document.getElementById("invite_user_to_group_form").classList.remove("hidden");
+			});
+			const invite_user_to_group_form = document.getElementById("invite_user_to_group_form");
+			const invite_user_to_group_form_on_input = () => {
+				let disable_submit = false;
+				if (invite_user_to_group_form.elements.uid.value === "") { disable_submit = true; }
+				invite_user_to_group_form.elements.submit.disabled = disable_submit;
+			};
+			document.getElementById("invite_user_to_group_form_abort_button").addEventListener("click", page.invite_user_to_group_form_hide);
+			invite_user_to_group_form.addEventListener("submit", async (e) => {
+				e.preventDefault();
+				try {
+					await invite_user_to_group(
+						invite_user_to_group_form.elements.uid.value,
+						page.selected_group,
+						invite_user_to_group_form.elements.role.value
+					);
+				} catch (error) {
+					// TODO: if the error can be analyzed more directly, display it in the form
+					page.status("could not add new group: " + error, "error");
+					return;
+				}
+				page.invite_user_to_group_form_hide();
+			});
+
+			invite_user_to_group_form.elements.uid.addEventListener("input", invite_user_to_group_form_on_input);
+			invite_user_to_group_form.elements.role.addEventListener("input", invite_user_to_group_form_on_input);
 
 			query = parse_query_string();
 
@@ -442,10 +644,7 @@
 				<div>
 					<button id="add_new_group_button" class="add_new_group_button">Add new group</button>
 					<form id="add_new_group_form" class="sub_element hidden">
-						<label>User ID<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
 						<label>Name<br/><input type="text" name="name" value="" autocomplete="off"><br></label>
-						<label>Email<br/><input type="text" name="email" value="" autocomplete="off"><br></label>
-						<label>Confirm email<br/><input type="text" name="email_confirm" value="" autocomplete="off"><br></label>
 						<button name="submit" type="submit" disabled="true">Add group</button>
 						<button id="add_new_group_form_abort_button" type="button">Abort</button>
 					</form>
@@ -475,7 +674,8 @@
 					<button id="invite_user_to_group_button" class="invite_user_to_group_button">Invite a user as member</button>
 					<form id="invite_user_to_group_form" class="sub_element hidden">
 						<label>User ID<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
-						<label>Role<br/><input type="text" name="uid" value="" autocomplete="off"><br></label>
+						<!-- <label>Role<br/><input type="text" name="role" value="" autocomplete="off"><br></label> -->
+						<label>Role<br/></label><select id="invite_user_to_group_form_role_selection" name="role" value =""></select></label>
 						<button name="submit" type="submit" disabled="true">Send Invitation</button>
 						<button id="invite_user_to_group_form_abort_button" type="button">Abort</button>
 					</form>

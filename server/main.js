@@ -568,6 +568,74 @@ crpc_functions.get_users_by_id = async (connection, args) => {
     return { "users": users };
 };
 
+const ARGS_ADD_NEW_GROUP = {};
+ARGS_ADD_NEW_GROUP.name = typecheck.string_group_name;
+
+crpc_functions.add_new_group = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_ADD_NEW_GROUP);
+
+    const self_uid = await connection.get_user();
+    const name = args.name;
+
+    const inserted_group = await connection.db.add_group(name, self_uid);
+    return { "added_group": inserted_group };
+};
+
+const ARGS_INVITE_USER_TO_GROUP = {};
+ARGS_INVITE_USER_TO_GROUP.uid = typecheck.string_uid;
+ARGS_INVITE_USER_TO_GROUP.gid = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);
+ARGS_INVITE_USER_TO_GROUP.role = typecheck.string_user_role;
+
+crpc_functions.invite_user_to_group = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_INVITE_USER_TO_GROUP);
+
+    const self_uid = await connection.get_user();
+
+    const inserted_membership = await connection.db.add_user_to_group(args.uid, args.gid, self_uid, args.role);
+    return { "added_membership": inserted_membership };
+};
+
+const ARGS_ACCEPT_OR_REJECT_GROUP_MEMBERSHIP = {};
+ARGS_ACCEPT_OR_REJECT_GROUP_MEMBERSHIP.gid = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);
+ARGS_ACCEPT_OR_REJECT_GROUP_MEMBERSHIP.accepted = typecheck.string_re("^accepted|rejected$");
+
+crpc_functions.accept_or_reject_group_membership = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_ACCEPT_OR_REJECT_GROUP_MEMBERSHIP);
+
+    const self_uid = await connection.get_user();
+
+    const accepted_membership = await connection.db.accept_or_reject_group_membership(self_uid, args.gid, args.accepted);
+    return { "accepted_membership": accepted_membership };
+};
+
+const ARGS_CHANGE_USER_ROLE = {};
+ARGS_CHANGE_USER_ROLE.uid = typecheck.string_uid;
+ARGS_CHANGE_USER_ROLE.gid = typecheck.multicheck([typecheck.integer, typecheck.nonnegative]);
+ARGS_CHANGE_USER_ROLE.new_role = typecheck.string_user_role;
+
+crpc_functions.change_user_role = async (connection, args) => {
+    typecheck.validate_object_structure(args, ARGS_CHANGE_USER_ROLE);
+
+    const self_uid = await connection.get_user();
+
+    const modified_membership = await connection.db.change_user_role(args.uid, args.gid, self_uid, args.new_role);
+    return { "modified_membership": modified_membership };
+};
+
+crpc_functions.get_enum_user_role = async (connection, args) => {
+    typecheck.validate_object_structure(args, {});
+
+    return await connection.db.get_enum_user_role();
+};
+
+crpc_functions.get_enum_membership_acceptance = async (connection, args) => {
+    typecheck.validate_object_structure(args, {});
+
+    return await connection.db.get_enum_membership_acceptance();
+};
+
+
+
 const main = async() => {
     await websocket_server(on_open, crpc_functions, on_close);
 };
